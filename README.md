@@ -10,9 +10,15 @@ A modular sports prediction-market trading engine.
 # Install (Python 3.11+)
 pip install -e ".[dev]"
 
-# Run the replay simulator
-python -m src.replay.simulator
+# Run the replay simulator — scripted scenarios
+python -m src.replay.simulator --scenario comeback
 python -m src.replay.simulator --scenario blowout
+
+# Microstructure-driven scenarios (regime-aware, slippage, liquidity collapse, analytics)
+python -m src.replay.simulator --scenario calm
+python -m src.replay.simulator --scenario panic
+python -m src.replay.simulator --scenario liquidity_crisis
+python -m src.replay.simulator --scenario endgame_chaos
 
 # Run tests
 pytest tests/ -v
@@ -26,11 +32,16 @@ src/
 ├── strategies/   # Signal generators — output Signal objects only
 ├── adapters/     # Market / game / execution adapters (mock only right now)
 ├── controller/   # Brain + decision loop (future LLM hook point)
-├── replay/       # Replay simulator + sample data loader
+├── replay/       # Replay simulator + scenario engine + sample data loader
+├── simulation/   # Market microstructure: orderbook, liquidity, slippage, regimes…
+├── analytics/    # PnL, drawdown, exposure, expectancy, correlation, performance
+├── storage/      # JSON/JSONL audit, replay, and snapshot stores
 └── models/       # Shared data types (Signal, OrderIntent, GameState, …)
 ```
 
-See `docs/` for full design documentation.
+See `docs/` for full design documentation:
+`CONCEPT.md`, `ARCHITECTURE.md`, `STRATEGIES.md`, `SIMULATION.md`,
+`LOCAL_BRAIN.md`, `LINUX_PLUG_AND_PLAY.md`, `SECRETS.md`.
 
 ## Design principles
 

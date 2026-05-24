@@ -37,10 +37,63 @@ src/
 │   ├── local_brain.py     observe → classify → route → summarize
 │   └── decision_loop.py   Orchestrates one full tick
 │
-└── replay/
-    ├── sample_data_loader.py  Scripted NFL scenarios
-    └── simulator.py           CLI entry point
+├── replay/
+│   ├── sample_data_loader.py  Scripted NFL scenarios
+│   ├── scenario_engine.py     Microstructure-driven scenario generator
+│   └── simulator.py           CLI entry point (scripted + simulated paths)
+│
+├── simulation/                Market microstructure (see docs/SIMULATION.md)
+│   ├── market_regime.py       MarketRegime enum + RegimeClassifier
+│   ├── orderbook.py           YES/NO limit book, depth, queue walk
+│   ├── liquidity.py           Depth profile + collapse modeling
+│   ├── slippage.py            Size/regime-aware realized fill price
+│   ├── latency.py             Quote/fill delays, stale snapshots
+│   ├── volatility.py          Per-tick increments per volatility regime
+│   ├── spread_engine.py       Spread = f(vol, liquidity, price)
+│   ├── fill_engine.py         book+slippage+latency+queue → fills
+│   ├── queue_model.py         FIFO queue position + fill probability
+│   └── event_engine.py        Random scoring/panic/collapse events
+│
+├── analytics/                 Pure metrics over trade/fill/PnL records
+│   ├── pnl.py                 Positions, realized/unrealized PnL
+│   ├── drawdown.py            Max drawdown over equity curve
+│   ├── exposure.py            Exposure by market/strategy/direction
+│   ├── correlation.py         Strategy-return correlation
+│   ├── expectancy.py          Expectancy + EV capture
+│   ├── strategy_metrics.py    Per-strategy attribution
+│   └── performance.py         Sharpe-like report aggregator
+│
+└── storage/                   Dependency-free JSON/JSONL persistence
+    ├── audit_store.py         Append-only audit trail (JSONL)
+    ├── replay_store.py        Save/load replay scenarios
+    └── snapshot_store.py      Per-tick state snapshots
 ```
+
+## Layering & dependencies
+
+```
+models  ←  simulation   (microstructure depends only on models)
+models  ←  analytics     (pure; reusable for live trading later)
+models  ←  storage
+models, simulation  ←  strategies (regime metadata)
+models, simulation  ←  engine (router ranking, risk regime scaling)
+everything           ←  controller / replay (orchestration)
+```
+
+## Upgraded engine components
+
+- **PortfolioRouter** (`engine/router.py`) — ranks opportunities by
+  EV × regime compatibility, enforces cooldowns, max-concurrent-strategy
+  caps, duplicate-direction and correlation guards, and dynamic sizing.
+  The base `Router.route()` is preserved.
+- **RiskManager** (`engine/risk.py`) — adds drawdown tracking, regime risk
+  scaling, volatility/liquidity-adjusted sizing, per-strategy exposure
+  limits, slippage-aware checks, and a catastrophic-loss kill switch. All
+  extended checks have permissive defaults, so the base contract is intact.
+- **Strategies** — each exposes a `StrategyProfile` (liquidity/volatility
+  sensitivity, risk, holding time, favored/averse regimes) and
+  `regime_compatibility()`, and behaves differently per regime.
+- **LocalBrain** — see docs/LOCAL_BRAIN.md.
 
 ## Data flow (one tick)
 
