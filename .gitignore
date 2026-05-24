@@ -35,5 +35,9 @@ Thumbs.db
 data/*.jsonl
 data/*.csv
 
+# Generated backtest artifacts (keep the README)
+data/backtests/*
+!data/backtests/README.md
+
 # Misc
 *.log

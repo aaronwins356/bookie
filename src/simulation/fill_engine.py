@@ -48,6 +48,9 @@ class FillEngine:
         # regime-aware slippage without changing the ExecutionAdapter API.
         self.current_regime: VolatilityRegime = VolatilityRegime.CALM
         self.book_depth: int = 60
+        # Cents charged per filled contract. Default preserves prior behavior;
+        # backtest robustness runs raise this to stress fee sensitivity.
+        self.fee_per_contract: float = 0.01
 
     def submit(self, intent: OrderIntent) -> ExecutionResult:
         """ExecutionAdapter entry point — uses an internal flat book."""
@@ -114,6 +117,6 @@ class FillEngine:
             status=status,
             filled_price=slip.realized_price,
             filled_size=filled_size,
-            fee=round(filled_size * 0.01, 2),
+            fee=round(filled_size * self.fee_per_contract, 2),
             message=msg,
         )

@@ -26,6 +26,12 @@ python -m src.data.cli build-bundle  --game data/examples/raw_game_sample.csv  -
 python -m src.data.cli inspect-bundle --bundle data/examples/replay_bundle.json
 python -m src.replay.simulator --bundle data/examples/replay_bundle.json
 
+# Backtesting (Phase 4): run/batch backtests, leaderboard, research report
+python -m src.backtest.cli run --scenario calm --seed 1 --out data/backtests/calm_seed1
+python -m src.backtest.cli run --bundle data/examples/replay_bundle.json --out data/backtests/example_bundle
+python -m src.backtest.cli batch --scenarios calm panic liquidity_crisis endgame_chaos --seeds 1 2 3 --out data/backtests/scenario_batch
+python -m src.backtest.cli leaderboard --results data/backtests/scenario_batch
+
 # Run tests
 pytest tests/ -v
 ```
@@ -43,13 +49,15 @@ src/
 ├── analytics/    # PnL, drawdown, exposure, expectancy, correlation, performance
 ├── storage/      # JSON/JSONL audit, replay, and snapshot stores
 ├── data/         # Phase 3: ingestion, canonical schema, validation, bundles, CLI
+├── backtest/     # Phase 4: runner, batch, splits, significance, robustness, leaderboard, CLI
 └── models/       # Shared data types (Signal, OrderIntent, GameState, …)
 ```
 
 See `docs/` for full design documentation:
 `CONCEPT.md`, `ARCHITECTURE.md`, `STRATEGIES.md`, `SIMULATION.md`,
 `LOCAL_BRAIN.md`, `DATA_PIPELINE.md`, `CANONICAL_SCHEMA.md`,
-`HISTORICAL_REPLAY.md`, `LINUX_PLUG_AND_PLAY.md`, `SECRETS.md`.
+`HISTORICAL_REPLAY.md`, `BACKTESTING.md`, `STRATEGY_LEADERBOARD.md`,
+`RESEARCH_WARNINGS.md`, `LINUX_PLUG_AND_PLAY.md`, `SECRETS.md`.
 
 ## Design principles
 

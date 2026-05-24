@@ -1,6 +1,7 @@
 .PHONY: install test replay replay-blowout lint clean \
 	sim-calm sim-panic sim-liquidity sim-endgame sim-all \
-	data-validate data-bundle data-inspect replay-bundle
+	data-validate data-bundle data-inspect replay-bundle \
+	backtest-example backtest-batch leaderboard
 
 install:
 	pip install -e ".[dev]"
@@ -46,6 +47,16 @@ data-inspect:
 
 replay-bundle:
 	python -m src.replay.simulator --bundle $(BUNDLE)
+
+# Phase 4 backtesting
+backtest-example:
+	python -m src.backtest.cli run --bundle $(BUNDLE) --out data/backtests/example_bundle
+
+backtest-batch:
+	python -m src.backtest.cli batch --scenarios calm panic liquidity_crisis endgame_chaos --seeds 1 2 3 --out data/backtests/scenario_batch
+
+leaderboard:
+	python -m src.backtest.cli leaderboard --results data/backtests/scenario_batch
 
 lint:
 	python -m pyright src tests
