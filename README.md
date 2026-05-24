@@ -20,6 +20,12 @@ python -m src.replay.simulator --scenario panic
 python -m src.replay.simulator --scenario liquidity_crisis
 python -m src.replay.simulator --scenario endgame_chaos
 
+# Data pipeline (Phase 3): ingest raw files → validate → bundle → replay
+python -m src.data.cli validate      --game data/examples/raw_game_sample.csv  --market data/examples/raw_market_sample.csv
+python -m src.data.cli build-bundle  --game data/examples/raw_game_sample.csv  --market data/examples/raw_market_sample.csv  --out data/examples/replay_bundle.json
+python -m src.data.cli inspect-bundle --bundle data/examples/replay_bundle.json
+python -m src.replay.simulator --bundle data/examples/replay_bundle.json
+
 # Run tests
 pytest tests/ -v
 ```
@@ -36,12 +42,14 @@ src/
 ├── simulation/   # Market microstructure: orderbook, liquidity, slippage, regimes…
 ├── analytics/    # PnL, drawdown, exposure, expectancy, correlation, performance
 ├── storage/      # JSON/JSONL audit, replay, and snapshot stores
+├── data/         # Phase 3: ingestion, canonical schema, validation, bundles, CLI
 └── models/       # Shared data types (Signal, OrderIntent, GameState, …)
 ```
 
 See `docs/` for full design documentation:
 `CONCEPT.md`, `ARCHITECTURE.md`, `STRATEGIES.md`, `SIMULATION.md`,
-`LOCAL_BRAIN.md`, `LINUX_PLUG_AND_PLAY.md`, `SECRETS.md`.
+`LOCAL_BRAIN.md`, `DATA_PIPELINE.md`, `CANONICAL_SCHEMA.md`,
+`HISTORICAL_REPLAY.md`, `LINUX_PLUG_AND_PLAY.md`, `SECRETS.md`.
 
 ## Design principles
 

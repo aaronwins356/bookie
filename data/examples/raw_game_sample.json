@@ -1,0 +1,8 @@
+[
+  {"event_id": "nfl-2024-key", "sport": "NFL", "league": "NFL", "home": "Eagles", "away": "Cowboys", "home_score": 0, "away_score": 0, "period": "1H", "time_remaining": 900, "status": "in_progress", "possession": "Eagles", "created_at": "2024-11-10T18:00:00Z"},
+  {"event_id": "nfl-2024-key", "sport": "NFL", "league": "NFL", "home": "Eagles", "away": "Cowboys", "home_score": 7, "away_score": 0, "period": "1H", "time_remaining": 810, "status": "in_progress", "possession": "Cowboys", "created_at": "2024-11-10T18:01:30Z"},
+  {"event_id": "nfl-2024-key", "sport": "NFL", "league": "NFL", "home": "Eagles", "away": "Cowboys", "home_score": 14, "away_score": 7, "period": "2H", "time_remaining": 1500, "status": "in_progress", "possession": "Eagles", "created_at": "2024-11-10T18:03:00Z"},
+  {"event_id": "nfl-2024-key", "sport": "NFL", "league": "NFL", "home": "Eagles", "away": "Cowboys", "home_score": 21, "away_score": 7, "period": "2H", "time_remaining": 1410, "status": "in_progress", "possession": "Cowboys", "created_at": "2024-11-10T18:04:30Z"},
+  {"event_id": "nfl-2024-key", "sport": "NFL", "league": "NFL", "home": "Eagles", "away": "Cowboys", "home_score": 21, "away_score": 14, "period": "2H", "time_remaining": 300, "status": "in_progress", "possession": "Eagles", "created_at": "2024-11-10T18:06:00Z"},
+  {"event_id": "nfl-2024-key", "sport": "NFL", "league": "NFL", "home": "Eagles", "away": "Cowboys", "home_score": 28, "away_score": 14, "period": "FT", "time_remaining": 0, "status": "final", "possession": null, "created_at": "2024-11-10T18:07:30Z"}
+]

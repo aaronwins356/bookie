@@ -1,0 +1,7 @@
+ts,market_id,eventId,yesBid,yesAsk,vol,last,oi,src
+2024-11-10T18:00:10Z,nfl-2024-key-ML,nfl-2024-key,49,51,100,50,80,mock_feed
+2024-11-10T18:01:38Z,nfl-2024-key-ML,nfl-2024-key,60,63,250,61,120,mock_feed
+2024-11-10T18:03:05Z,nfl-2024-key-ML,nfl-2024-key,66,69,500,67,200,mock_feed
+2024-11-10T18:04:42Z,nfl-2024-key-ML,nfl-2024-key,75,78,800,76,260,mock_feed
+2024-11-10T18:06:09Z,nfl-2024-key-ML,nfl-2024-key,80,84,1100,82,300,mock_feed
+2024-11-10T18:07:36Z,nfl-2024-key-ML,nfl-2024-key,96,99,1500,98,350,mock_feed

@@ -1,0 +1,10 @@
+{
+  "rows": [
+    {"timestamp": "2024-11-10T18:00:10Z", "market_id": "nfl-2024-key-ML", "game_id": "nfl-2024-key", "bid_yes": 49, "ask_yes": 51, "volume": 100, "price": 50, "oi": 80, "source": "mock_feed"},
+    {"timestamp": "2024-11-10T18:01:38Z", "market_id": "nfl-2024-key-ML", "game_id": "nfl-2024-key", "bid_yes": 60, "ask_yes": 63, "volume": 250, "price": 61, "oi": 120, "source": "mock_feed"},
+    {"timestamp": "2024-11-10T18:03:05Z", "market_id": "nfl-2024-key-ML", "game_id": "nfl-2024-key", "bid_yes": 66, "ask_yes": 69, "volume": 500, "price": 67, "oi": 200, "source": "mock_feed"},
+    {"timestamp": "2024-11-10T18:04:42Z", "market_id": "nfl-2024-key-ML", "game_id": "nfl-2024-key", "bid_yes": 75, "ask_yes": 78, "volume": 800, "price": 76, "oi": 260, "source": "mock_feed"},
+    {"timestamp": "2024-11-10T18:06:09Z", "market_id": "nfl-2024-key-ML", "game_id": "nfl-2024-key", "bid_yes": 80, "ask_yes": 84, "volume": 1100, "price": 82, "oi": 300, "source": "mock_feed"},
+    {"timestamp": "2024-11-10T18:07:36Z", "market_id": "nfl-2024-key-ML", "game_id": "nfl-2024-key", "bid_yes": 96, "ask_yes": 99, "volume": 1500, "price": 98, "oi": 350, "source": "mock_feed"}
+  ]
+}

@@ -1,0 +1,7 @@
+event_id,sport,league,homeTeam,awayTeam,homeScore,awayScore,period,clock,status,possession,ts
+nfl-2024-key,NFL,NFL,Eagles,Cowboys,0,0,1H,900,in_progress,Eagles,2024-11-10T18:00:00Z
+nfl-2024-key,NFL,NFL,Eagles,Cowboys,7,0,1H,810,in_progress,Cowboys,2024-11-10T18:01:30Z
+nfl-2024-key,NFL,NFL,Eagles,Cowboys,14,7,2H,1500,in_progress,Eagles,2024-11-10T18:03:00Z
+nfl-2024-key,NFL,NFL,Eagles,Cowboys,21,7,2H,1410,in_progress,Cowboys,2024-11-10T18:04:30Z
+nfl-2024-key,NFL,NFL,Eagles,Cowboys,21,14,2H,300,in_progress,Eagles,2024-11-10T18:06:00Z
+nfl-2024-key,NFL,NFL,Eagles,Cowboys,28,14,FT,0,final,,2024-11-10T18:07:30Z

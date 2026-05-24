@@ -1,0 +1,260 @@
+{
+  "bundle_id": "NFL-nfl-2024-key-5631167500",
+  "created_at": "2024-11-10T18:07:36+00:00",
+  "event_id": "nfl-2024-key",
+  "league": "NFL",
+  "quality_report": {
+    "dropped_rows": 0,
+    "error_count": 0,
+    "fatal_count": 0,
+    "info_count": 0,
+    "issues": [],
+    "liquidity_issue_count": 0,
+    "max_timestamp_gap_seconds": 85.0,
+    "price_issue_count": 0,
+    "stale_game_count": 0,
+    "stale_market_count": 0,
+    "time_range_end": "2024-11-10T18:07:36+00:00",
+    "time_range_start": "2024-11-10T18:00:00+00:00",
+    "total_aligned_ticks": 6,
+    "total_game_rows": 6,
+    "total_market_rows": 6,
+    "verdict": "PASS",
+    "warning_count": 0
+  },
+  "source_metadata": {
+    "game_file": "data/examples/raw_game_sample.csv",
+    "market_file": "data/examples/raw_market_sample.csv"
+  },
+  "sport": "NFL",
+  "ticks": [
+    {
+      "game_event": {
+        "away_score": 0,
+        "away_team": "Cowboys",
+        "clock_seconds_remaining": 900,
+        "event_id": "nfl-2024-key",
+        "home_score": 0,
+        "home_team": "Eagles",
+        "league": "NFL",
+        "period": "1H",
+        "possession": "Eagles",
+        "scheduled_start": null,
+        "sport": "NFL",
+        "status": "in_progress",
+        "timestamp": "2024-11-10T18:00:00+00:00"
+      },
+      "market_snapshot": {
+        "event_id": "nfl-2024-key",
+        "last_price": 50.0,
+        "liquidity_score": 9.0,
+        "market_id": "nfl-2024-key-ML",
+        "no_ask": 51.0,
+        "no_bid": 49.0,
+        "open_interest": 80,
+        "source": "mock_feed",
+        "timestamp": "2024-11-10T18:00:10+00:00",
+        "volume": 100,
+        "yes_ask": 51.0,
+        "yes_bid": 49.0
+      },
+      "metadata": {
+        "lag_seconds": 10.0,
+        "stale_game": false,
+        "stale_market": false
+      },
+      "orderbook_snapshot": null,
+      "timestamp": "2024-11-10T18:00:10+00:00"
+    },
+    {
+      "game_event": {
+        "away_score": 0,
+        "away_team": "Cowboys",
+        "clock_seconds_remaining": 810,
+        "event_id": "nfl-2024-key",
+        "home_score": 7,
+        "home_team": "Eagles",
+        "league": "NFL",
+        "period": "1H",
+        "possession": "Cowboys",
+        "scheduled_start": null,
+        "sport": "NFL",
+        "status": "in_progress",
+        "timestamp": "2024-11-10T18:01:30+00:00"
+      },
+      "market_snapshot": {
+        "event_id": "nfl-2024-key",
+        "last_price": 61.0,
+        "liquidity_score": 18.5,
+        "market_id": "nfl-2024-key-ML",
+        "no_ask": 40.0,
+        "no_bid": 37.0,
+        "open_interest": 120,
+        "source": "mock_feed",
+        "timestamp": "2024-11-10T18:01:38+00:00",
+        "volume": 250,
+        "yes_ask": 63.0,
+        "yes_bid": 60.0
+      },
+      "metadata": {
+        "lag_seconds": 8.0,
+        "stale_game": false,
+        "stale_market": false
+      },
+      "orderbook_snapshot": null,
+      "timestamp": "2024-11-10T18:01:38+00:00"
+    },
+    {
+      "game_event": {
+        "away_score": 7,
+        "away_team": "Cowboys",
+        "clock_seconds_remaining": 1500,
+        "event_id": "nfl-2024-key",
+        "home_score": 14,
+        "home_team": "Eagles",
+        "league": "NFL",
+        "period": "2H",
+        "possession": "Eagles",
+        "scheduled_start": null,
+        "sport": "NFL",
+        "status": "in_progress",
+        "timestamp": "2024-11-10T18:03:00+00:00"
+      },
+      "market_snapshot": {
+        "event_id": "nfl-2024-key",
+        "last_price": 67.0,
+        "liquidity_score": 35.0,
+        "market_id": "nfl-2024-key-ML",
+        "no_ask": 34.0,
+        "no_bid": 31.0,
+        "open_interest": 200,
+        "source": "mock_feed",
+        "timestamp": "2024-11-10T18:03:05+00:00",
+        "volume": 500,
+        "yes_ask": 69.0,
+        "yes_bid": 66.0
+      },
+      "metadata": {
+        "lag_seconds": 5.0,
+        "stale_game": false,
+        "stale_market": false
+      },
+      "orderbook_snapshot": null,
+      "timestamp": "2024-11-10T18:03:05+00:00"
+    },
+    {
+      "game_event": {
+        "away_score": 7,
+        "away_team": "Cowboys",
+        "clock_seconds_remaining": 1410,
+        "event_id": "nfl-2024-key",
+        "home_score": 21,
+        "home_team": "Eagles",
+        "league": "NFL",
+        "period": "2H",
+        "possession": "Cowboys",
+        "scheduled_start": null,
+        "sport": "NFL",
+        "status": "in_progress",
+        "timestamp": "2024-11-10T18:04:30+00:00"
+      },
+      "market_snapshot": {
+        "event_id": "nfl-2024-key",
+        "last_price": 76.0,
+        "liquidity_score": 53.0,
+        "market_id": "nfl-2024-key-ML",
+        "no_ask": 25.0,
+        "no_bid": 22.0,
+        "open_interest": 260,
+        "source": "mock_feed",
+        "timestamp": "2024-11-10T18:04:42+00:00",
+        "volume": 800,
+        "yes_ask": 78.0,
+        "yes_bid": 75.0
+      },
+      "metadata": {
+        "lag_seconds": 12.0,
+        "stale_game": false,
+        "stale_market": false
+      },
+      "orderbook_snapshot": null,
+      "timestamp": "2024-11-10T18:04:42+00:00"
+    },
+    {
+      "game_event": {
+        "away_score": 14,
+        "away_team": "Cowboys",
+        "clock_seconds_remaining": 300,
+        "event_id": "nfl-2024-key",
+        "home_score": 21,
+        "home_team": "Eagles",
+        "league": "NFL",
+        "period": "2H",
+        "possession": "Eagles",
+        "scheduled_start": null,
+        "sport": "NFL",
+        "status": "in_progress",
+        "timestamp": "2024-11-10T18:06:00+00:00"
+      },
+      "market_snapshot": {
+        "event_id": "nfl-2024-key",
+        "last_price": 82.0,
+        "liquidity_score": 70.0,
+        "market_id": "nfl-2024-key-ML",
+        "no_ask": 20.0,
+        "no_bid": 16.0,
+        "open_interest": 300,
+        "source": "mock_feed",
+        "timestamp": "2024-11-10T18:06:09+00:00",
+        "volume": 1100,
+        "yes_ask": 84.0,
+        "yes_bid": 80.0
+      },
+      "metadata": {
+        "lag_seconds": 9.0,
+        "stale_game": false,
+        "stale_market": false
+      },
+      "orderbook_snapshot": null,
+      "timestamp": "2024-11-10T18:06:09+00:00"
+    },
+    {
+      "game_event": {
+        "away_score": 14,
+        "away_team": "Cowboys",
+        "clock_seconds_remaining": 0,
+        "event_id": "nfl-2024-key",
+        "home_score": 28,
+        "home_team": "Eagles",
+        "league": "NFL",
+        "period": "FT",
+        "possession": null,
+        "scheduled_start": null,
+        "sport": "NFL",
+        "status": "final",
+        "timestamp": "2024-11-10T18:07:30+00:00"
+      },
+      "market_snapshot": {
+        "event_id": "nfl-2024-key",
+        "last_price": 98.0,
+        "liquidity_score": 92.5,
+        "market_id": "nfl-2024-key-ML",
+        "no_ask": 4.0,
+        "no_bid": 1.0,
+        "open_interest": 350,
+        "source": "mock_feed",
+        "timestamp": "2024-11-10T18:07:36+00:00",
+        "volume": 1500,
+        "yes_ask": 99.0,
+        "yes_bid": 96.0
+      },
+      "metadata": {
+        "lag_seconds": 6.0,
+        "stale_game": false,
+        "stale_market": false
+      },
+      "orderbook_snapshot": null,
+      "timestamp": "2024-11-10T18:07:36+00:00"
+    }
+  ]
+}

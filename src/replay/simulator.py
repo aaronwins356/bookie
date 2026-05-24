@@ -35,6 +35,8 @@ from src.controller.decision_loop import DecisionLoop
 from src.adapters.mock_execution_adapter import MockExecutionAdapter
 from src.simulation.fill_engine import FillEngine
 from src.simulation.slippage import SlippageModel
+from src.simulation.volatility import VolatilityRegime
+from src.simulation.market_regime import RegimeClassifier, RegimeInputs
 from src.models import OrderSide
 from src.analytics.pnl import PnLTracker, Trade
 from src.analytics.exposure import ExposureTracker
@@ -234,6 +236,144 @@ def _run_simulated(scenario: str, seed: int = 42) -> None:
     print(f"\nReplay complete. {len(ticks)} tick(s) processed.\n")
 
 
+# ---------------------------------------------------------------------------
+# Bundle path (historical-style replay from a normalized data bundle).
+# ---------------------------------------------------------------------------
+def _run_bundle(bundle_path: str) -> None:
+    from src.data.bundle import load_bundle, to_engine_ticks
+    from src.data.timestamp import parse_timestamp, AmbiguousTimestampError
+
+    bundle = load_bundle(bundle_path)
+    engine_ticks = to_engine_ticks(bundle)
+
+    strategies = _make_strategies()
+    strat_map: Dict[str, object] = {s.NAME: s for s in strategies}
+
+    features = FeatureExtractor()
+    registry = ToolRegistry()
+    brain = LocalBrain(registry)
+    router = PortfolioRouter(max_concurrent_strategies=3, cooldown_ticks=1)
+    risk = RiskManager(RiskConfig(max_drawdown=300.0, min_liquidity_depth=20, max_slippage_cents=15.0))
+    fill_engine = FillEngine()
+    slippage = SlippageModel()
+    classifier = RegimeClassifier()
+    audit = AuditLog()
+
+    pnl = PnLTracker()
+    exposure = ExposureTracker()
+    perf = PerformanceAnalyzer()
+    snapshots = SnapshotStore()
+    portfolio = PortfolioState()
+
+    verdict = bundle.quality_report.verdict.value if bundle.quality_report else "UNKNOWN"
+    print(f"\n{DIVIDER}\n  BOOKIE HISTORICAL REPLAY  -  bundle={bundle.bundle_id}\n{DIVIDER}")
+    print(f"  event={bundle.event_id} ({bundle.sport}/{bundle.league})  "
+          f"ticks={len(engine_ticks)}  data_verdict={verdict}\n")
+
+    n_fills = 0
+    prev_equity = 0.0
+    prev_mid = None
+    prev_ts = None
+    marks: Dict[str, float] = {}
+
+    for i, (game, markets) in enumerate(engine_ticks, 1):
+        market = markets[0]
+        canonical_tick = bundle.ticks[i - 1]
+        depth = max(1, market.open_interest)
+
+        # Derive odds velocity from consecutive mids / timestamps.
+        try:
+            ts = parse_timestamp(canonical_tick.timestamp).timestamp()
+        except (AmbiguousTimestampError, ValueError):
+            ts = None
+        if prev_mid is not None and prev_ts is not None and ts is not None and ts > prev_ts:
+            odds_velocity = (market.mid - prev_mid) / (ts - prev_ts)
+        else:
+            odds_velocity = 0.0
+
+        regime = classifier.classify(RegimeInputs(
+            spread=market.spread,
+            odds_velocity=odds_velocity,
+            liquidity_depth=depth,
+            volatility=abs(odds_velocity) * 60.0,
+            time_remaining=game.clock_seconds,
+            score_diff=game.score_diff,
+            order_flow_imbalance=max(-1.0, min(1.0, odds_velocity * 10.0)),
+            mid_price=market.mid,
+        ))
+        fill_engine.current_regime = VolatilityRegime.CALM
+        fill_engine.book_depth = max(5, int(depth * 0.2))
+
+        stale = canonical_tick.metadata.get("stale_market") or canonical_tick.metadata.get("stale_game")
+        print(f"--- TICK {i} ---")
+        print(f"  GAME STATE  : {game.home_team} {game.home_score} vs "
+              f"{game.away_team} {game.away_score}  [{game.phase.value}]  "
+              f"clock={game.clock_seconds}s  diff={game.score_diff:+d}")
+        print(f"  MARKET STATE: {market.market_id}  mid={market.mid:.1f}c  "
+              f"spread={market.spread:.1f}c  oi={market.open_interest}  vol={market.volume}")
+        print(f"  REGIME      : {regime.value}  odds_velocity={odds_velocity:+.4f}c/s"
+              f"{'  [STALE DATA]' if stale else ''}")
+
+        audit.record("regime", tick=i, micro=regime.value, spread=market.spread, depth=depth)
+
+        fs = features.extract(game, market)
+        signals = [s.evaluate(fs, regime=regime) for s in strategies]
+        opportunities = brain.evaluate_opportunities(signals, strat_map, regime)
+        print(f"  SIGNALS ({len(signals)}):")
+        for s in signals:
+            marker = "*" if s.is_actionable() else " "
+            print(f"    [{marker}] {s.strategy_name:<22} {s.direction.value:<5} "
+                  f"edge={s.edge:+.1f}  conf={s.confidence:.2f}")
+
+        intents = router.allocate(signals, strat_map, regime, portfolio)
+        print(f"  ROUTER      : {len(intents)} intent(s) allocated "
+              f"(of {len(opportunities)} ranked opportunities)")
+
+        for intent in intents:
+            slip = slippage.estimate(intent.price, intent.size, depth, fill_engine.current_regime)
+            approved, reason = risk.evaluate(
+                intent, spread=market.spread, regime=regime,
+                liquidity_depth=depth, expected_slippage=slip.slippage_cents,
+            )
+            audit.record("risk", intent_id=intent.intent_id, approved=approved, reason=reason)
+            if not approved:
+                print(f"    VETO   {intent.strategy_name:<20} {intent.side.value} "
+                      f"{intent.size}x @ {intent.price:.1f}c - {reason}")
+                continue
+            result = fill_engine.submit(intent)
+            n_fills += 1
+            trade = Trade(
+                market_id=intent.market_id, strategy_name=intent.strategy_name,
+                side=intent.side, price=result.filled_price or intent.price,
+                size=result.filled_size or 0, fee=result.fee,
+            )
+            pnl.record(trade, requested_price=intent.price)
+            exposure.add(intent.market_id, intent.strategy_name, intent.side, trade.price, trade.size)
+            risk.state.add_exposure(intent.strategy_name, trade.price * trade.size / 100.0)
+            print(f"    FILL   {intent.strategy_name:<20} {intent.side.value} "
+                  f"{result.filled_size}x @ {result.filled_price:.1f}c  [{result.message}]")
+            audit.record("fill", intent_id=intent.intent_id, price=result.filled_price, size=result.filled_size)
+
+        marks = {market.market_id: market.mid}
+        equity = pnl.total_pnl(marks)
+        perf.record_equity(equity)
+        perf.record_regime_pnl(regime.value, equity - prev_equity)
+        prev_equity, prev_mid, prev_ts = equity, market.mid, ts
+        risk.state.update_equity(equity)
+
+        snapshots.capture(TickSnapshot(
+            tick=i, game_id=game.game_id, regime=regime.value,
+            mid_price=market.mid, spread=market.spread, liquidity_depth=depth,
+            n_signals=len(signals), n_fills=len(intents), pnl=round(equity, 2),
+        ))
+        print(f"  PNL         : equity={equity:+.2f}  drawdown={risk.state.max_drawdown_seen:.2f}")
+        print()
+
+    _print_analytics(f"bundle:{bundle.bundle_id}", pnl, exposure, perf, snapshots, n_fills, marks)
+    print(f"Historical replay complete. {len(engine_ticks)} tick(s) processed.")
+    print("NOTE: historical replay is NOT proof of live edge — see docs/HISTORICAL_REPLAY.md.\n")
+
+
 def _print_analytics(scenario, pnl, exposure, perf, snapshots, n_fills, marks) -> None:
     report = perf.build_report(
         realized=pnl.realized_total,
@@ -257,8 +397,10 @@ def _print_analytics(scenario, pnl, exposure, perf, snapshots, n_fills, marks) -
     print()
 
 
-def run(scenario: str = "comeback", seed: int = 42) -> None:
-    if scenario in SCRIPTED:
+def run(scenario: str = "comeback", seed: int = 42, bundle: str | None = None) -> None:
+    if bundle is not None:
+        _run_bundle(bundle)
+    elif scenario in SCRIPTED:
         _run_scripted(scenario)
     else:
         _run_simulated(scenario, seed=seed)
@@ -272,8 +414,10 @@ def main() -> None:
         help="Replay scenario to run",
     )
     parser.add_argument("--seed", type=int, default=42, help="RNG seed for simulated scenarios")
+    parser.add_argument("--bundle", default=None,
+                        help="Path to a replay bundle JSON/JSONL (overrides --scenario)")
     args = parser.parse_args()
-    run(scenario=args.scenario, seed=args.seed)
+    run(scenario=args.scenario, seed=args.seed, bundle=args.bundle)
 
 
 if __name__ == "__main__":
