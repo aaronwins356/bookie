@@ -1,0 +1,14 @@
+{
+  "game_id": "nfl-2024-sample",
+  "sport": "NFL",
+  "home_team": "Eagles",
+  "away_team": "Cowboys",
+  "ticks": [
+    {"home_score": 0,  "away_score": 0,  "phase": "FIRST_HALF",  "clock_seconds": 1800, "market_mid": 50.0},
+    {"home_score": 7,  "away_score": 0,  "phase": "FIRST_HALF",  "clock_seconds": 900,  "market_mid": 61.0},
+    {"home_score": 14, "away_score": 7,  "phase": "HALFTIME",    "clock_seconds": 0,    "market_mid": 62.0},
+    {"home_score": 21, "away_score": 14, "phase": "SECOND_HALF", "clock_seconds": 900,  "market_mid": 64.0},
+    {"home_score": 21, "away_score": 21, "phase": "SECOND_HALF", "clock_seconds": 120,  "market_mid": 51.0},
+    {"home_score": 28, "away_score": 21, "phase": "FINAL",       "clock_seconds": 0,    "market_mid": 99.0}
+  ]
+}
