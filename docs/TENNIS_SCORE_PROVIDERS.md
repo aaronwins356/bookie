@@ -26,25 +26,27 @@ python -m src.sports.tennis.cli pair-markets --provider mock --mock-markets
 
 ### EspnProvider
 
-**Status:** Research / beta — ESPN API is undocumented and can break without notice
+**Status:** Research / beta — ESPN API is undocumented and can change without notice
 
-Attempts to fetch live tennis match data from ESPN's web API endpoints.
+Fetches tennis match data from ESPN's public web API endpoints.
 
 **Capabilities:**
-- Fetches live and scheduled matches from ESPN
-- Parses match state into `TennisState` objects
-- Infers tour (ATP/WTA), surface (hard/clay/grass), from tournament name
-- Tolerates missing fields (returns safe None defaults)
+- Fetches tournament and match data from ESPN's `/atp/events` and `/wta/events` endpoints
+- Parses match scores from full-match string format (e.g., "6-2 7-6(7-5) 3-2")
+- Infers tour (ATP/WTA), surface (hard/clay/grass) from tournament name
+- Handles both old and new ESPN API response formats (athlete.displayName and direct displayName)
+- Tolerates missing fields (returns safe defaults: scores=0, player="Unknown")
 - Caches data for 5 seconds to avoid hammering ESPN
+- Retry logic with exponential backoff (max 2 retries)
 - Handles network failures gracefully (returns empty list, not exceptions)
 
 **Limitations:**
 - ESPN API is **undocumented** and can change or break without notice
-- Limited point-by-point data (ESPN updates ~5-10s intervals, not live point-level)
-- Player name formatting may be inconsistent
-- Tiebreak detection inferred from game count (6-6 in set)
+- Returns tournament matches (some in-progress, some scheduled), not strictly "live" matches
+- Player names may differ from Kalshi market names (requires fuzzy matching)
+- Full-match score strings require parsing (point-level data unavailable)
 - Server identity rarely provided (defaulted to UNKNOWN)
-- Surface/tour sometimes requires fuzzy inference from tournament name
+- Surface/tour inferred from tournament name rather than explicit metadata
 
 **Usage:**
 ```bash

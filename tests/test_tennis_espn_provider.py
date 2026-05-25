@@ -13,6 +13,7 @@ from src.sports.tennis.espn_provider import (
     _infer_tour,
     _parse_event_to_match_info,
     _parse_event_to_state,
+    _parse_score_string,
 )
 from src.sports.tennis.state import Surface, Tour
 
@@ -62,6 +63,34 @@ def _mock_event(
                     {"score": sets_b, "statistics": {"sets": sets_b, "games": games_b}},
                 ],
             }
+        ],
+    }
+
+
+def _mock_event_new_format(
+    event_id: str = "E123",
+    player_a: str = "Casper Ruud",
+    player_b: str = "Roman Safiullin",
+    name: str = "Roland Garros",
+    score_a: str = "6-2 3-1",
+    score_b: str = "2-6 1-3",
+) -> dict:
+    """Create a mock ESPN event dict in the new endpoint format (direct displayName)."""
+    return {
+        "id": event_id,
+        "name": name,
+        "status": {"type": "in_progress"},
+        "competitors": [
+            {
+                "displayName": player_a,
+                "score": score_a,
+                "winner": False,
+            },
+            {
+                "displayName": player_b,
+                "score": score_b,
+                "winner": False,
+            },
         ],
     }
 
@@ -135,6 +164,33 @@ class TestExtractTournament:
         assert "Alcaraz" not in tournament
 
 
+class TestParseScoreString:
+    def test_single_set_in_progress(self):
+        # Match with score "6-2" (one set, currently at 6-2 in second set)
+        assert _parse_score_string("6-2 3-2", "2-6 2-3") == (1, 0, 3, 2)
+
+    def test_two_sets_completed(self):
+        # Match with "6-2 7-6(7-5)" (two sets completed)
+        assert _parse_score_string("6-2 7-6(7-5) 5-7", "2-6 6-7(5-7) 7-5") == (2, 0, 5, 7)
+
+    def test_three_sets_competitive(self):
+        # Match with "6-2 7-6(7-5) 5-7 0-6 4-1" (in 5th set, split 2-2)
+        sets_won_a, sets_won_b, games_a, games_b = _parse_score_string(
+            "6-2 7-6(7-5) 5-7 0-6 4-1",
+            "2-6 6-7(5-7) 7-5 6-0 1-4"
+        )
+        assert sets_won_a == 2
+        assert sets_won_b == 2
+        assert games_a == 4
+        assert games_b == 1
+
+    def test_empty_string(self):
+        assert _parse_score_string("", "") is None
+
+    def test_invalid_format(self):
+        assert _parse_score_string("invalid", "also-invalid") is None
+
+
 class TestParseEventToMatchInfo:
     def test_valid_event(self):
         event = _mock_event()
@@ -175,6 +231,15 @@ class TestParseEventToMatchInfo:
         event = _mock_event(status="in_progress")
         info = _parse_event_to_match_info(event)
         assert "live" in info.status.lower()
+
+    def test_new_format_direct_displayname(self):
+        # Test parsing new endpoint format with direct displayName (no athlete wrapper)
+        event = _mock_event_new_format()
+        info = _parse_event_to_match_info(event)
+        assert info is not None
+        assert info.player_a == "Casper Ruud"
+        assert info.player_b == "Roman Safiullin"
+        assert info.tournament == "Roland Garros"
 
 
 class TestParseEventToState:
@@ -223,6 +288,22 @@ class TestParseEventToState:
         state = _parse_event_to_state(event, "E123")
         assert state.sets_a == 0
         assert state.sets_b == 0
+
+    def test_new_format_score_string(self):
+        # Test parsing new endpoint format with score strings
+        event = _mock_event_new_format(
+            event_id="E456",
+            score_a="6-2 7-6(7-5) 3-2",
+            score_b="2-6 6-7(5-7) 2-3"
+        )
+        state = _parse_event_to_state(event, "E456")
+        assert state is not None
+        assert state.match_id == "E456"
+        # Should parse: sets_won_a=2, sets_won_b=0, current_games_a=3, current_games_b=2
+        assert state.sets_a == 2
+        assert state.sets_b == 0
+        assert state.games_a == 3
+        assert state.games_b == 2
 
 
 # ---------------------------------------------------------------------------

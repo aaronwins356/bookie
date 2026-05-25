@@ -63,6 +63,11 @@ class EspnProvider(TennisScoreProvider):
         self._cache: Dict[str, Any] = {}
         self._cache_time: Dict[str, float] = {}
         self._cache_ttl = 5.0  # cache live data for 5 seconds
+        # Fallback endpoints to try
+        self._fallback_urls = [
+            f"{base_url}/atp/events",
+            f"{base_url}/wta/events",
+        ]
 
     def list_live_matches(self) -> List[TennisMatchInfo]:
         """
@@ -126,23 +131,31 @@ class EspnProvider(TennisScoreProvider):
     def _fetch_events(self) -> List[Dict[str, Any]]:
         """
         Fetch raw events JSON from ESPN API with caching.
-        Returns empty list on failure.
+        Tries multiple endpoints and returns empty list on failure.
         """
         cache_key = "live_events"
         now = time.time()
         if cache_key in self._cache_time and now - self._cache_time[cache_key] < self._cache_ttl:
             return self._cache.get(cache_key, [])
 
-        try:
-            url = f"{self._base_url}/competitions?limit=100"
-            data = self._fetch_json(url)
-            events = data.get("events", [])
-            self._cache[cache_key] = events
-            self._cache_time[cache_key] = now
-            return events
-        except Exception as exc:
-            logger.warning(f"Failed to fetch events: {exc}")
-            return []
+        # Try primary endpoint first, then fallbacks
+        urls_to_try = [f"{self._base_url}/competitions?limit=100"] + self._fallback_urls
+
+        for url in urls_to_try:
+            try:
+                data = self._fetch_json(url)
+                events = data.get("events", [])
+                if events:
+                    self._cache[cache_key] = events
+                    self._cache_time[cache_key] = now
+                    logger.debug(f"Successfully fetched {len(events)} events from {url}")
+                    return events
+            except Exception as exc:
+                logger.debug(f"Failed to fetch from {url}: {exc}")
+                continue
+
+        logger.warning("Failed to fetch events from all endpoints")
+        return []
 
     def _fetch_json(self, url: str) -> Dict[str, Any]:
         """
@@ -169,10 +182,48 @@ class EspnProvider(TennisScoreProvider):
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
+def _parse_score_string(score_a: str, score_b: str) -> Optional[tuple]:
+    """
+    Parse ESPN score strings like "6-2 7-6(7-5) 5-7 0-6 4-1" and "2-6 6-7(5-7) 7-5 6-0 1-4".
+    Returns (sets_a, sets_b, games_a, games_b) of the current set, or None if unparseable.
+    Example: "6-2 7-6 5-7" means A won set 1 (6-2), set 2 (7-6), lost set 3 (5-7).
+    Current set (incomplete) is the last score.
+    """
+    try:
+        # Split by spaces to get individual set scores
+        sets_a_list = score_a.split()
+        sets_b_list = score_b.split()
+
+        if not sets_a_list or not sets_b_list:
+            return None
+
+        # Count completed sets (where both players have a score)
+        sets_won_a = 0
+        sets_won_b = 0
+
+        # Process completed sets (all but the last one)
+        for i in range(min(len(sets_a_list) - 1, len(sets_b_list) - 1)):
+            set_score_a = int(sets_a_list[i].split('-')[0])
+            set_score_b = int(sets_b_list[i].split('-')[0])
+            if set_score_a > set_score_b:
+                sets_won_a += 1
+            else:
+                sets_won_b += 1
+
+        # Parse current set (last score)
+        current_set_a = sets_a_list[-1].split('-')[0] if sets_a_list else 0
+        current_set_b = sets_b_list[-1].split('-')[0] if sets_b_list else 0
+
+        return (sets_won_a, sets_won_b, int(current_set_a), int(current_set_b))
+    except (ValueError, IndexError, AttributeError):
+        return None
+
+
 def _parse_event_to_match_info(event: Dict[str, Any]) -> Optional[TennisMatchInfo]:
     """
     Convert raw ESPN event dict to TennisMatchInfo.
     Returns None if critical fields are missing.
+    Handles both old (athlete.displayName) and new (direct displayName) structures.
     """
     try:
         event_id = event.get("id")
@@ -185,11 +236,18 @@ def _parse_event_to_match_info(event: Dict[str, Any]) -> Optional[TennisMatchInf
 
         comp_a = competitors[0]
         comp_b = competitors[1]
-        player_a = comp_a.get("athlete", {}).get("displayName", "Unknown")
-        player_b = comp_b.get("athlete", {}).get("displayName", "Unknown")
 
-        if not player_a or not player_b:
-            return None
+        # Support both old structure (athlete.displayName) and new structure (direct displayName)
+        player_a = (
+            comp_a.get("athlete", {}).get("displayName") or
+            comp_a.get("displayName") or
+            "Unknown"
+        )
+        player_b = (
+            comp_b.get("athlete", {}).get("displayName") or
+            comp_b.get("displayName") or
+            "Unknown"
+        )
 
         tournament = _extract_tournament(name)
         tour = _infer_tour(name)
@@ -215,6 +273,7 @@ def _parse_event_to_state(event: Dict[str, Any], match_id: str) -> Optional[Tenn
     Convert raw ESPN event dict to TennisState snapshot.
     Returns None if the event_id doesn't match match_id.
     Tolerates missing score fields (defaults to 0-0-0-0-0-0).
+    Handles both old structure (competitions array) and new structure (direct score field).
     """
     try:
         event_id = event.get("id")
@@ -227,35 +286,54 @@ def _parse_event_to_state(event: Dict[str, Any], match_id: str) -> Optional[Tenn
 
         comp_a = competitors[0]
         comp_b = competitors[1]
-        player_a = comp_a.get("athlete", {}).get("displayName", "A")
-        player_b = comp_b.get("athlete", {}).get("displayName", "B")
 
-        # Parse score from competitions array
-        competitions = event.get("competitions", [])
-        if not competitions:
-            competitions = [{}]
-        comp = competitions[0]
+        # Support both old structure (athlete.displayName) and new structure (direct displayName)
+        player_a = (
+            comp_a.get("athlete", {}).get("displayName") or
+            comp_a.get("displayName") or
+            "A"
+        )
+        player_b = (
+            comp_b.get("athlete", {}).get("displayName") or
+            comp_b.get("displayName") or
+            "B"
+        )
 
-        # Extract score: typically nested in competitor stats
+        # Initialize score fields
         sets_a, sets_b = 0, 0
         games_a, games_b = 0, 0
         points_a, points_b = 0, 0
         tiebreak = False
 
-        # Try to extract set/game scores from the score structure
-        comp_scores = comp.get("competitors", [])
-        if len(comp_scores) >= 2:
-            try:
-                stats_a = comp_scores[0].get("statistics", {})
-                stats_b = comp_scores[1].get("statistics", {})
-                sets_a = int(stats_a.get("sets", 0))
-                sets_b = int(stats_b.get("sets", 0))
-                games_a = int(stats_a.get("games", 0))
-                games_b = int(stats_b.get("games", 0))
-                if games_a == 6 and games_b == 6:
-                    tiebreak = True
-            except (ValueError, TypeError):
-                pass
+        # Try to parse score from either structure
+        # New structure: direct "score" field with format "6-2 7-6(7-5) 5-7 0-6 4-1"
+        score_str_a = comp_a.get("score")
+        score_str_b = comp_b.get("score")
+        if score_str_a and score_str_b:
+            # Parse score strings like "6-2 7-6(7-5) 5-7 0-6 4-1"
+            parsed = _parse_score_string(score_str_a, score_str_b)
+            if parsed:
+                sets_a, sets_b, games_a, games_b = parsed
+
+        # Old structure: competitions array with nested competitor stats
+        competitions = event.get("competitions", [])
+        if competitions and not score_str_a:
+            comp = competitions[0]
+            comp_scores = comp.get("competitors", [])
+            if len(comp_scores) >= 2:
+                try:
+                    stats_a = comp_scores[0].get("statistics", {})
+                    stats_b = comp_scores[1].get("statistics", {})
+                    sets_a = int(stats_a.get("sets", 0))
+                    sets_b = int(stats_b.get("sets", 0))
+                    games_a = int(stats_a.get("games", 0))
+                    games_b = int(stats_b.get("games", 0))
+                except (ValueError, TypeError):
+                    pass
+
+        # Detect tiebreak
+        if games_a == 6 and games_b == 6:
+            tiebreak = True
 
         tournament = _extract_tournament(event.get("name", ""))
         tour = _infer_tour(event.get("name", ""))
