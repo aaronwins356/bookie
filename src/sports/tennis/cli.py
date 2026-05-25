@@ -278,6 +278,11 @@ def cmd_backtest_capture(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def _make_provider(args: argparse.Namespace):
+    provider_name = getattr(args, "provider", "mock").lower()
+    if provider_name == "espn":
+        from src.sports.tennis.espn_provider import EspnProvider
+        return EspnProvider(timeout=10.0)
+    # Default to mock
     from src.sports.tennis.mock_provider import MockProvider
     return MockProvider()
 
@@ -357,6 +362,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # list-live
     ll = sub.add_parser("list-live", help="list live tennis matches from provider")
+    ll.add_argument("--provider", default="mock", choices=["mock", "espn"], help="score provider (default: mock)")
     ll.set_defaults(func=cmd_list_live)
 
     # pair-markets
@@ -364,6 +370,7 @@ def _build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--status", default="open", help="Kalshi market status filter")
     pm.add_argument("--threshold", type=float, default=0.55, help="min confidence to accept pair")
     pm.add_argument("--mock-markets", action="store_true", help="use built-in mock markets (no Kalshi auth)")
+    pm.add_argument("--provider", default="mock", choices=["mock", "espn"], help="score provider (default: mock)")
     pm.set_defaults(func=cmd_pair_markets)
 
     # record-paired
@@ -372,6 +379,7 @@ def _build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--ticker", required=True, help="Kalshi ticker to record alongside")
     rp.add_argument("--seconds", type=int, default=300, help="recording duration in seconds")
     rp.add_argument("--out", default="data/live/tennis", help="base output directory")
+    rp.add_argument("--provider", default="mock", choices=["mock", "espn"], help="score provider (default: mock)")
     rp.set_defaults(func=cmd_record_paired)
 
     # build-bundle
