@@ -106,7 +106,26 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
     signer = KalshiSigner(env.key_id, env.private_key_path)
     client = KalshiRestClient(env, signer)
 
+    sport = getattr(args, "sport", None)
+    query = getattr(args, "query", None)
+    verbose = getattr(args, "verbose", False)
+
     try:
+        # Fetch raw markets first if verbose mode (to show filter diagnostics)
+        all_markets = None
+        if verbose and (sport or query):
+            all_markets = search_markets(
+                client,
+                series_ticker=args.series,
+                event_ticker=args.event,
+                ticker=args.ticker,
+                status=args.status,
+                limit=args.limit,
+                sport=None,
+                query=None,
+            )
+
+        # Fetch filtered markets
         markets = search_markets(
             client,
             series_ticker=args.series,
@@ -114,8 +133,8 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
             ticker=args.ticker,
             status=args.status,
             limit=args.limit,
-            sport=getattr(args, "sport", None),
-            query=getattr(args, "query", None),
+            sport=sport,
+            query=query,
         )
     except Exception as exc:
         print(f"error fetching markets: {exc}", file=sys.stderr)
@@ -123,8 +142,23 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
 
     print(f"\n{DIVIDER}")
     print(f"  MARKETS ({len(markets)} found)")
+    if all_markets is not None:
+        print(f"  (filtered from {len(all_markets)} total)")
     print(DIVIDER)
-    print(format_market_table(markets))
+
+    if not markets and sport:
+        print(f"  No {sport.upper()} markets found.")
+        if verbose and all_markets is not None:
+            print(f"  Total markets available: {len(all_markets)}")
+            if all_markets:
+                series_list = sorted(set(m.series_ticker for m in all_markets))
+                print("  Available series tickers: " + ", ".join(series_list[:10]))
+                if len(series_list) > 10:
+                    print(f"                            ... and {len(series_list) - 10} more")
+    elif not markets:
+        print("  (no markets found)")
+    else:
+        print(format_market_table(markets))
     print()
     return 0
 
@@ -275,6 +309,7 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument("--limit", type=int, default=100)
     lm.add_argument("--sport", default=None, help="sport filter (e.g. tennis)")
     lm.add_argument("--query", default=None, help="substring search across title/tickers")
+    lm.add_argument("--verbose", action="store_true", help="show diagnostics and filtered counts")
     lm.set_defaults(func=cmd_list_markets)
 
     # record
