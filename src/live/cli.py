@@ -167,6 +167,60 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# search-markets
+# ---------------------------------------------------------------------------
+def cmd_search_markets(args: argparse.Namespace) -> int:
+    """Search markets by query string (e.g., 'Gaston', 'French Open', 'tennis')."""
+    env = load_env()
+    problems = validate_env(env)
+    if problems:
+        print("error: environment not configured. Run 'doctor' for details.", file=sys.stderr)
+        return 1
+
+    from src.live.kalshi_auth import KalshiSigner
+    from src.live.kalshi_rest import KalshiRestClient
+    from src.live.market_discovery import _parse_market
+
+    signer = KalshiSigner(env.key_id, env.private_key_path)
+    client = KalshiRestClient(env, signer)
+
+    query = args.query
+    status = getattr(args, "status", None)
+    limit = getattr(args, "limit", 100)
+
+    try:
+        resp = client.search_markets(q=query, status=status, limit=limit)
+        markets_raw = resp.get("markets", [])
+        markets = [_parse_market(m) for m in markets_raw]
+    except Exception as exc:
+        print(f"error searching markets: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"\n{DIVIDER}")
+    print(f"  SEARCH RESULTS for '{query}' ({len(markets)} found)")
+    print(DIVIDER)
+
+    if not markets:
+        print("  (no markets found)")
+    else:
+        # Print full details for each market
+        for m in markets:
+            print(f"\n  {m.ticker}")
+            print(f"    Title:        {m.title}")
+            print(f"    Series:       {m.series_ticker}")
+            print(f"    Event:        {m.event_ticker}")
+            print(f"    Status:       {m.status}")
+            print(f"    Bid/Ask:      {m.yes_bid or '—':.2f} / {m.yes_ask or '—':.2f}")
+            print(f"    Volume:       {m.volume}")
+            print(f"    Open Int:     {m.open_interest}")
+            if m.extra:
+                print(f"    Extra:        {m.extra}")
+
+    print()
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # record
 # ---------------------------------------------------------------------------
 def cmd_record(args: argparse.Namespace) -> int:
@@ -315,6 +369,13 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument("--query", default=None, help="substring search across title/tickers")
     lm.add_argument("--verbose", action="store_true", help="show diagnostics and filtered counts")
     lm.set_defaults(func=cmd_list_markets)
+
+    # search-markets
+    sm = sub.add_parser("search-markets", help="search markets by query (e.g., 'Gaston', 'French Open')")
+    sm.add_argument("--query", required=True, help="search query string")
+    sm.add_argument("--status", default=None, help="filter by status (e.g. open)")
+    sm.add_argument("--limit", type=int, default=100, help="max results")
+    sm.set_defaults(func=cmd_search_markets)
 
     # record
     rec = sub.add_parser("record", help="record live WS data to JSONL")

@@ -91,3 +91,76 @@ class KalshiRestClient:
 
     def get_market(self, ticker: str) -> Dict[str, Any]:
         return self.get(f"/markets/{ticker}", authenticated=True)
+
+    def search_markets(
+        self,
+        q: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 100,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Search markets by query string.
+
+        Args:
+          q: Search query (e.g., "Gaston", "French Open", "tennis")
+          status: Filter by status
+          limit: Max results
+          **kwargs: Additional API parameters
+
+        Returns:
+          API response with matching markets
+        """
+        params: Dict[str, Any] = {"limit": limit}
+        if q:
+            params["q"] = q
+        if status:
+            params["status"] = status
+        params.update(kwargs)
+        return self.get("/markets", params=params, authenticated=True)
+
+    def get_events(
+        self,
+        status: Optional[str] = None,
+        limit: int = 100,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Get all events.
+
+        Args:
+          status: Filter by status
+          limit: Max results
+          **kwargs: Additional API parameters
+
+        Returns:
+          API response with events
+        """
+        params: Dict[str, Any] = {"limit": limit}
+        if status:
+            params["status"] = status
+        params.update(kwargs)
+        return self.get("/events", params=params, authenticated=True)
+
+    def get_series(
+        self,
+        status: Optional[str] = None,
+        limit: int = 100,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Get all series.
+
+        Args:
+          status: Filter by status
+          limit: Max results
+          **kwargs: Additional API parameters
+
+        Returns:
+          API response with series
+        """
+        params: Dict[str, Any] = {"limit": limit}
+        if status:
+            params["status"] = status
+        params.update(kwargs)
+        return self.get("/series", params=params, authenticated=True)
