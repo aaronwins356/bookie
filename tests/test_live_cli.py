@@ -151,6 +151,50 @@ class TestSearchMarketsCommand:
         assert matches_query(bundled, "bundled") is True  # Matches by category
 
 
+class TestGetMarketCommand:
+    def test_fails_without_env(self, capsys):
+        clean_env = {k: v for k, v in os.environ.items()
+                     if k not in ("KALSHI_KEY_ID", "KALSHI_PRIVATE_KEY_PATH")}
+        with patch.dict(os.environ, clean_env, clear=True):
+            args = build_parser().parse_args(["get-market", "--ticker", "KXTEST"])
+            rc = args.func(args)
+        assert rc != 0
+
+
+class TestExtractAtpWtaTickers:
+    def test_extract_atp_tickers_from_bundled(self):
+        """Test extracting ATP match tickers from bundled product titles."""
+        from src.live.market_discovery import extract_atp_wta_tickers, MarketInfo
+
+        bundled = MarketInfo(
+            ticker="KXMVESPORTSMULTIGAMEEXTENDED",
+            title="MVP Extended Sports Multi-Game Bundle with KXATPMATCH-26MAY25GASMON-GAS",
+            status="open",
+            event_ticker="KXMVESPORTS",
+            series_ticker="KXMVESPORTS",
+            extra={"description": "Contains matches like KXATPMATCH-26MAY25DIOKH-D"},
+        )
+
+        extracted = extract_atp_wta_tickers([bundled])
+        assert "KXATPMATCH-26MAY25GASMON-GAS" in extracted
+        assert "KXATPMATCH-26MAY25DIOKH-D" in extracted
+
+    def test_no_atp_tickers_in_non_tennis(self):
+        """Test that non-tennis markets don't produce ATP tickers."""
+        from src.live.market_discovery import extract_atp_wta_tickers, MarketInfo
+
+        crypto = MarketInfo(
+            ticker="KXBTC15M",
+            title="Bitcoin at 32000 or higher",
+            status="open",
+            event_ticker="KXBTC15M",
+            series_ticker="KXBTC15M",
+        )
+
+        extracted = extract_atp_wta_tickers([crypto])
+        assert len(extracted) == 0
+
+
 class TestBuildBundleCommand:
     def _write_capture(self, path: Path, ticker: str = "T", n: int = 3) -> None:
         with open(path, "w") as fh:

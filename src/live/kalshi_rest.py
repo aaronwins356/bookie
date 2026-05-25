@@ -90,7 +90,16 @@ class KalshiRestClient:
         return self.get(f"/markets/{ticker}/orderbook", params={"depth": depth}, authenticated=True)
 
     def get_market(self, ticker: str) -> Dict[str, Any]:
+        """Fetch a single market by ticker."""
         return self.get(f"/markets/{ticker}", authenticated=True)
+
+    def get_event(self, event_ticker: str) -> Dict[str, Any]:
+        """Fetch a single event by ticker."""
+        return self.get(f"/events/{event_ticker}", authenticated=True)
+
+    def get_series_detail(self, series_ticker: str) -> Dict[str, Any]:
+        """Fetch a single series by ticker."""
+        return self.get(f"/series/{series_ticker}", authenticated=True)
 
     def search_markets(
         self,

@@ -251,6 +251,94 @@ def cmd_search_markets(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# get-market
+# ---------------------------------------------------------------------------
+def cmd_get_market(args: argparse.Namespace) -> int:
+    """Fetch a single market by ticker (direct lookup)."""
+    env = load_env()
+    problems = validate_env(env)
+    if problems:
+        print("error: environment not configured. Run 'doctor' for details.", file=sys.stderr)
+        return 1
+
+    from src.live.kalshi_auth import KalshiSigner
+    from src.live.kalshi_rest import KalshiRestClient
+    from src.live.market_discovery import _parse_market
+
+    signer = KalshiSigner(env.key_id, env.private_key_path)
+    client = KalshiRestClient(env, signer)
+
+    ticker = args.ticker
+
+    try:
+        resp = client.get_market(ticker)
+        market_raw = resp.get("market")
+        if not market_raw:
+            print(f"Market not found: {ticker}", file=sys.stderr)
+            return 1
+        market = _parse_market(market_raw)
+    except Exception as exc:
+        print(f"error fetching market {ticker}: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"\n{DIVIDER}")
+    print(f"  MARKET: {ticker}")
+    print(DIVIDER)
+
+    print(f"\n  {market.ticker}")
+    print(f"    Title:        {market.title}")
+    print(f"    Series:       {market.series_ticker}")
+    print(f"    Event:        {market.event_ticker}")
+    print(f"    Status:       {market.status}")
+    bid_str = f"{market.yes_bid:.2f}" if market.yes_bid is not None else "—"
+    ask_str = f"{market.yes_ask:.2f}" if market.yes_ask is not None else "—"
+    print(f"    Bid/Ask:      {bid_str} / {ask_str}")
+    print(f"    Volume:       {market.volume}")
+    print(f"    Open Int:     {market.open_interest}")
+    if market.extra:
+        print(f"    Extra:        {market.extra}")
+
+    print()
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# get-event
+# ---------------------------------------------------------------------------
+def cmd_get_event(args: argparse.Namespace) -> int:
+    """Fetch event details by event ticker."""
+    env = load_env()
+    problems = validate_env(env)
+    if problems:
+        print("error: environment not configured. Run 'doctor' for details.", file=sys.stderr)
+        return 1
+
+    from src.live.kalshi_auth import KalshiSigner
+    from src.live.kalshi_rest import KalshiRestClient
+
+    signer = KalshiSigner(env.key_id, env.private_key_path)
+    client = KalshiRestClient(env, signer)
+
+    event_ticker = args.ticker
+
+    try:
+        resp = client.get_event(event_ticker)
+        event_data = resp.get("event") or resp
+    except Exception as exc:
+        print(f"error fetching event {event_ticker}: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"\n{DIVIDER}")
+    print(f"  EVENT: {event_ticker}")
+    print(DIVIDER)
+    print()
+    import json
+    print(json.dumps(event_data, indent=2))
+    print()
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # record
 # ---------------------------------------------------------------------------
 def cmd_record(args: argparse.Namespace) -> int:
@@ -407,6 +495,16 @@ def build_parser() -> argparse.ArgumentParser:
     sm.add_argument("--limit", type=int, default=100, help="max raw results to fetch before filtering")
     sm.add_argument("--verbose", action="store_true", help="show raw API results when no matches found")
     sm.set_defaults(func=cmd_search_markets)
+
+    # get-market
+    gm = sub.add_parser("get-market", help="fetch a single market by ticker (direct lookup)")
+    gm.add_argument("--ticker", required=True, help="market ticker (e.g., KXATPMATCH-26MAY25GASMON-GAS)")
+    gm.set_defaults(func=cmd_get_market)
+
+    # get-event
+    ge = sub.add_parser("get-event", help="fetch event details by event ticker")
+    ge.add_argument("--ticker", required=True, help="event ticker (e.g., KXATPMATCH-26MAY25GASMON)")
+    ge.set_defaults(func=cmd_get_event)
 
     # record
     rec = sub.add_parser("record", help="record live WS data to JSONL")

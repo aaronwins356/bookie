@@ -125,6 +125,39 @@ def _parse_market(m: Dict[str, Any]) -> MarketInfo:
     )
 
 
+def extract_atp_wta_tickers(markets: List[MarketInfo]) -> List[str]:
+    """
+    Extract ATP/WTA match tickers from bundled products.
+
+    Bundled products may contain embedded match tickers in title or extra fields.
+    Look for patterns like:
+      - KXATPMATCH-* (ATP matches)
+      - KXWTAMATCH-* (WTA matches)
+      - Title containing match player names
+
+    Returns list of unique ATP/WTA tickers to fetch directly.
+    """
+    import re
+
+    tickers = set()
+
+    for market in markets:
+        # Look for ATP/WTA match patterns in all text fields
+        text_fields = [
+            market.ticker,
+            market.title,
+            market.series_ticker,
+            market.event_ticker,
+        ] + [str(v) for v in market.extra.values() if v]
+
+        for text in text_fields:
+            # Match ATP/WTA match tickers: KXATPMATCH-* or KXWTAMATCH-*
+            matches = re.findall(r"(KX[A-Z]TPMATCH[^\s,\)]*)", str(text), re.IGNORECASE)
+            tickers.update(matches)
+
+    return sorted(list(tickers))
+
+
 def format_market_table(markets: List[MarketInfo]) -> str:
     if not markets:
         return "  (no markets found)"
