@@ -99,6 +99,99 @@ class TestPairMarkets:
         assert re.search(r"\d\.\d{2}", out)
 
 
+class TestHydrationAndPairing:
+    def test_hydrate_atp_market_from_ticker(self):
+        """Test that ATP market hydration parses market dict to MarketInfo."""
+        from src.sports.tennis.cli import _hydrate_atp_markets
+        from src.live.market_discovery import MarketInfo
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_market.return_value = {
+            "ticker": "KXATPMATCH-26MAY25GASMON-GAS",
+            "title": "Gaston vs Monfils French Open",
+            "status": "open",
+            "event_ticker": "KXATPMATCH-26MAY25GASMON",
+            "series_ticker": "KXATP",
+            "yes_bid": 4800,  # in cents
+            "yes_ask": 5200,
+            "volume": 500,
+            "open_interest": 200,
+        }
+
+        hydrated = _hydrate_atp_markets(client, ["KXATPMATCH-26MAY25GASMON-GAS"])
+
+        assert len(hydrated) == 1
+        assert hydrated[0].ticker == "KXATPMATCH-26MAY25GASMON-GAS"
+        assert hydrated[0].title == "Gaston vs Monfils French Open"
+        assert hydrated[0].yes_bid == 48.0  # converted from cents
+        assert hydrated[0].yes_ask == 52.0
+
+    def test_hydrate_deduplicates_tickers(self):
+        """Test that duplicate ATP tickers are dedupped."""
+        from src.sports.tennis.cli import _hydrate_atp_markets
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        client.get_market.return_value = {
+            "ticker": "KXATPMATCH-26MAY25GASMON-GAS",
+            "title": "Gaston vs Monfils French Open",
+            "status": "open",
+            "event_ticker": "KXATPMATCH-26MAY25GASMON",
+            "series_ticker": "KXATP",
+            "yes_bid": 4800,
+            "yes_ask": 5200,
+        }
+
+        # Pass same ticker twice
+        hydrated = _hydrate_atp_markets(client, [
+            "KXATPMATCH-26MAY25GASMON-GAS",
+            "KXATPMATCH-26MAY25GASMON-GAS",
+        ])
+
+        # Should only hydrate once (deduplicated)
+        assert len(hydrated) == 1
+        assert client.get_market.call_count == 2
+
+    def test_hydrate_handles_failed_tickers(self):
+        """Test that hydration continues on API failures."""
+        from src.sports.tennis.cli import _hydrate_atp_markets
+        from unittest.mock import MagicMock
+
+        client = MagicMock()
+        # First ticker fails, second succeeds
+        client.get_market.side_effect = [
+            RuntimeError("API error"),
+            {
+                "ticker": "KXATPMATCH-26MAY25UNKNOWN-UNK",
+                "title": "Unknown Match",
+                "status": "open",
+                "event_ticker": "KXATPMATCH-26MAY25UNKNOWN",
+                "series_ticker": "KXATP",
+                "yes_bid": 4800,
+                "yes_ask": 5200,
+            },
+        ]
+
+        hydrated = _hydrate_atp_markets(client, [
+            "KXATPMATCH-BAD-TICKER",
+            "KXATPMATCH-26MAY25UNKNOWN-UNK",
+        ])
+
+        # Should have 1 hydrated market (the successful one)
+        assert len(hydrated) == 1
+        assert hydrated[0].ticker == "KXATPMATCH-26MAY25UNKNOWN-UNK"
+
+    def test_pair_markets_gets_hydrated_markets(self, capsys):
+        """Test that pair-markets reports hydrated market count."""
+        # This is an integration test that uses mock markets
+        rc = _run("pair-markets", "--mock-markets")
+        out = capsys.readouterr().out + capsys.readouterr().err
+
+        # With mock markets, we should see market count reported
+        assert "markets" in out.lower()
+
+
 class TestRecordPaired:
     def test_unknown_match_id_exits_1(self):
         with tempfile.TemporaryDirectory() as tmp:

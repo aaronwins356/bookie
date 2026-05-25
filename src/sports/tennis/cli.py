@@ -289,7 +289,15 @@ def _make_provider(args: argparse.Namespace):
 
 def _fetch_markets(args: argparse.Namespace):
     """
-    Fetch Kalshi markets. Uses mock markets when Kalshi env is not configured.
+    Fetch Kalshi markets with ATP/WTA hydration.
+
+    Pipeline:
+    1. Search for bundled/meta markets (category="sports")
+    2. Extract embedded ATP/WTA tickers from bundled products
+    3. Hydrate each ATP/WTA ticker via direct get_market() lookup
+    4. Return deduplicated ATP/WTA markets (exclude bundled products)
+
+    Uses mock markets when Kalshi env is not configured.
     In live mode, requires KALSHI_KEY_ID and KALSHI_PRIVATE_KEY_PATH.
     """
     use_mock = getattr(args, "mock_markets", False)
@@ -304,12 +312,53 @@ def _fetch_markets(args: argparse.Namespace):
 
     from src.live.kalshi_auth import KalshiSigner
     from src.live.kalshi_rest import KalshiRestClient
-    from src.live.market_discovery import search_markets
+    from src.live.market_discovery import search_markets, extract_atp_wta_tickers, _parse_market
 
     signer = KalshiSigner(env.key_id, env.private_key_path)
     client = KalshiRestClient(env, signer)
     status = getattr(args, "status", "open")
-    return search_markets(client, status=status, sport="tennis")
+
+    # Step 1: Get bundled/meta markets
+    bundled = search_markets(client, status=status, sport="tennis")
+    print(f"  discovered bundled products: {len(bundled)}", file=sys.stderr)
+
+    # Step 2: Extract ATP/WTA tickers from bundled products
+    atp_tickers = extract_atp_wta_tickers(bundled)
+    print(f"  extracted ATP/WTA tickers  : {len(atp_tickers)}", file=sys.stderr)
+
+    # Step 3: Hydrate ATP/WTA markets via direct lookup
+    hydrated = _hydrate_atp_markets(client, atp_tickers)
+    print(f"  hydrated ATP markets       : {len(hydrated)}", file=sys.stderr)
+
+    return hydrated
+
+
+def _hydrate_atp_markets(client, atp_tickers: list) -> list:
+    """
+    Fetch and parse individual ATP/WTA markets by ticker.
+
+    Args:
+        client: KalshiRestClient instance
+        atp_tickers: List of ATP/WTA match tickers (e.g., KXATPMATCH-26MAY25GASMON-GAS)
+
+    Returns:
+        List of MarketInfo objects, deduplicated by ticker
+    """
+    from src.live.market_discovery import _parse_market, MarketInfo
+
+    hydrated = {}  # ticker -> MarketInfo (for dedup)
+
+    for ticker in atp_tickers:
+        try:
+            market_dict = client.get_market(ticker)
+            market = _parse_market(market_dict)
+            if ticker not in hydrated:  # Deduplicate by ticker
+                hydrated[ticker] = market
+        except Exception as exc:
+            print(f"  warning: could not hydrate {ticker}: {exc}", file=sys.stderr)
+            continue
+
+    return list(hydrated.values())
 
 
 def _mock_markets():
