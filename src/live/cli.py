@@ -109,11 +109,12 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
     sport = getattr(args, "sport", None)
     query = getattr(args, "query", None)
     verbose = getattr(args, "verbose", False)
+    category = getattr(args, "category", None)
 
     try:
         # Fetch raw markets first if verbose mode (to show filter diagnostics)
         all_markets = None
-        if verbose and (sport or query):
+        if verbose and (sport or query or category):
             all_markets = search_markets(
                 client,
                 series_ticker=args.series,
@@ -123,6 +124,7 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
                 limit=args.limit,
                 sport=None,
                 query=None,
+                category=None,
             )
 
         # Fetch filtered markets
@@ -135,6 +137,7 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
             limit=args.limit,
             sport=sport,
             query=query,
+            category=category,
         )
     except Exception as exc:
         print(f"error fetching markets: {exc}", file=sys.stderr)
@@ -308,6 +311,7 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument("--status", default=None, help="market status (e.g. open)")
     lm.add_argument("--limit", type=int, default=100)
     lm.add_argument("--sport", default=None, help="sport filter (e.g. tennis)")
+    lm.add_argument("--category", default=None, help="Kalshi category filter (e.g. sports, bundled_product)")
     lm.add_argument("--query", default=None, help="substring search across title/tickers")
     lm.add_argument("--verbose", action="store_true", help="show diagnostics and filtered counts")
     lm.set_defaults(func=cmd_list_markets)

@@ -56,7 +56,23 @@ class KalshiRestClient:
         ticker: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 100,
+        **kwargs,
     ) -> Dict[str, Any]:
+        """
+        Query markets from Kalshi API.
+
+        Standard params:
+          series_ticker: Filter by series (e.g., "KXATP")
+          event_ticker: Filter by event
+          ticker: Filter by exact ticker
+          status: Filter by status (e.g., "open")
+          limit: Max results (default 100)
+
+        Additional params can be passed as kwargs:
+          category: "sports", "bundled_product", etc.
+          sport: "tennis", "basketball", etc.
+          Other Kalshi API parameters
+        """
         params: Dict[str, Any] = {"limit": limit}
         if series_ticker:
             params["series_ticker"] = series_ticker
@@ -66,6 +82,8 @@ class KalshiRestClient:
             params["tickers"] = ticker
         if status:
             params["status"] = status
+        # Pass through any additional API parameters
+        params.update(kwargs)
         return self.get("/markets", params=params, authenticated=True)
 
     def get_orderbook(self, ticker: str, depth: int = 10) -> Dict[str, Any]:
