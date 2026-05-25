@@ -99,6 +99,106 @@ class TestPairMarkets:
         assert re.search(r"\d\.\d{2}", out)
 
 
+class TestPlayerBasedDiscovery:
+    def test_extract_atp_tickers_recursive_from_strings(self):
+        """Test recursive ATP ticker extraction from market objects."""
+        from src.sports.tennis.cli import _extract_atp_tickers_recursive
+
+        markets = [
+            {
+                "ticker": "KXATP-WIM26",
+                "title": "Some market with KXATPMATCH-26MAY25GASMON-GAS embedded",
+                "extra": {
+                    "description": "Contains KXATPMATCH-26MAY25UNKNOWN-UNK",
+                }
+            },
+        ]
+
+        tickers = _extract_atp_tickers_recursive(markets)
+        assert "KXATPMATCH-26MAY25GASMON-GAS" in tickers
+        assert "KXATPMATCH-26MAY25UNKNOWN-UNK" in tickers
+
+    def test_extract_atp_tickers_recursive_from_nested(self):
+        """Test recursive extraction from deeply nested structures."""
+        from src.sports.tennis.cli import _extract_atp_tickers_recursive
+
+        markets = [
+            {
+                "ticker": "KXMVESPORTS",
+                "custom_strike": {
+                    "associated_markets": [
+                        {"ticker": "KXATPMATCH-26MAY25TEST-TST"},
+                        {"ticker": "KXATPMATCH-26MAY25TEST2-TS2"},
+                    ]
+                }
+            }
+        ]
+
+        tickers = _extract_atp_tickers_recursive(markets)
+        assert len(tickers) == 2
+        assert "KXATPMATCH-26MAY25TEST-TST" in tickers
+        assert "KXATPMATCH-26MAY25TEST2-TS2" in tickers
+
+    def test_discover_markets_by_players_generates_queries(self):
+        """Test that player-based discovery generates correct search queries."""
+        from src.sports.tennis.provider_base import TennisMatchInfo, Tour, Surface
+        from src.live.market_discovery import MarketInfo
+        from unittest.mock import MagicMock, patch
+
+        # Create a mock match for Gaston vs Monfils
+        match = TennisMatchInfo(
+            match_id="test-gaston-monfils",
+            player_a="Hugo Gaston",
+            player_b="Gael Monfils",
+            tournament="Roland Garros 2026",
+            tour=Tour.ATP,
+            surface=Surface.CLAY,
+            status="live",
+        )
+
+        # Mock client
+        client = MagicMock()
+
+        # Mock get_market to return the actual Gaston vs Monfils market
+        client.get_market.return_value = {
+            "ticker": "KXATPMATCH-26MAY25GASMON-GAS",
+            "title": "Hugo Gaston vs Gael Monfils French Open",
+            "status": "open",
+            "event_ticker": "KXATPMATCH-26MAY25GASMON",
+            "series_ticker": "KXATP",
+            "yes_bid": 4800,
+            "yes_ask": 5200,
+            "volume": 500,
+            "open_interest": 200,
+        }
+
+        # Track queries passed to search_markets
+        queries_tried = []
+
+        def mock_search_markets(client, query=None, status=None, **kwargs):
+            queries_tried.append(query)
+            if query in ("Hugo Gaston", "Gaston", "Gael Monfils", "Monfils", "Roland Garros 2026"):
+                return [
+                    MarketInfo(
+                        ticker="KXMVESPORTSMULTIGAMEEXTENDED",
+                        title=f"MVP Extended Sports Multi-Game Bundle with KXATPMATCH-26MAY25GASMON-GAS {query}",
+                        status="open",
+                        event_ticker="KXMVESPORTS",
+                        series_ticker="KXMVESPORTS",
+                    )
+                ]
+            return []
+
+        # Patch search_markets at the module level where it's imported
+        with patch("src.live.market_discovery.search_markets", side_effect=mock_search_markets):
+            from src.sports.tennis.cli import _discover_markets_by_players
+            markets = _discover_markets_by_players(client, [match], verbose=False)
+
+            # Verify that queries were generated for player names
+            assert "Hugo Gaston" in queries_tried or "Gaston" in queries_tried
+            assert "Gael Monfils" in queries_tried or "Monfils" in queries_tried
+
+
 class TestHydrationAndPairing:
     def test_hydrate_atp_market_from_ticker(self):
         """Test that ATP market hydration parses market dict to MarketInfo."""
@@ -190,6 +290,67 @@ class TestHydrationAndPairing:
 
         # With mock markets, we should see market count reported
         assert "markets" in out.lower()
+
+    def test_extract_and_hydrate_atp_markets_workflow(self):
+        """Test the full extraction and hydration workflow for ATP markets."""
+        from src.sports.tennis.cli import _extract_atp_tickers_recursive, _hydrate_atp_markets
+        from unittest.mock import MagicMock
+
+        # Simulate raw API search results with embedded ATP tickers in various fields
+        search_results = [
+            {
+                "ticker": "KXMVESPORTSMULTIGAMEEXTENDED",
+                "title": "Sports Bundle with KXATPMATCH-03JUL26FEDNAD-FED",
+                "status": "open",
+                "event_ticker": "KXMVESPORTS",
+                "series_ticker": "KXMVESPORTS",
+                "custom_strike": {
+                    "associated_markets": [
+                        {"market_ticker": "KXATPMATCH-03JUL26DJOTIM-DJO"}
+                    ]
+                }
+            }
+        ]
+
+        # Extract ATP tickers
+        tickers = _extract_atp_tickers_recursive(search_results)
+        assert len(tickers) == 2
+        assert "KXATPMATCH-03JUL26FEDNAD-FED" in tickers
+        assert "KXATPMATCH-03JUL26DJOTIM-DJO" in tickers
+
+        # Mock hydration
+        client = MagicMock()
+
+        def get_market_side_effect(ticker):
+            markets = {
+                "KXATPMATCH-03JUL26FEDNAD-FED": {
+                    "ticker": "KXATPMATCH-03JUL26FEDNAD-FED",
+                    "title": "Roger Federer vs Rafael Nadal Wimbledon",
+                    "status": "open",
+                    "event_ticker": "KXATPMATCH-03JUL26FEDNAD",
+                    "series_ticker": "KXATP",
+                    "yes_bid": 5000,
+                    "yes_ask": 5500,
+                },
+                "KXATPMATCH-03JUL26DJOTIM-DJO": {
+                    "ticker": "KXATPMATCH-03JUL26DJOTIM-DJO",
+                    "title": "Novak Djokovic vs Jannik Sinner Wimbledon",
+                    "status": "open",
+                    "event_ticker": "KXATPMATCH-03JUL26DJOTIM",
+                    "series_ticker": "KXATP",
+                    "yes_bid": 4800,
+                    "yes_ask": 5200,
+                }
+            }
+            return markets.get(ticker, {})
+
+        client.get_market.side_effect = get_market_side_effect
+
+        # Hydrate the tickers
+        hydrated = _hydrate_atp_markets(client, tickers)
+        assert len(hydrated) == 2
+        assert any(m.ticker == "KXATPMATCH-03JUL26FEDNAD-FED" for m in hydrated)
+        assert any(m.ticker == "KXATPMATCH-03JUL26DJOTIM-DJO" for m in hydrated)
 
 
 class TestRecordPaired:

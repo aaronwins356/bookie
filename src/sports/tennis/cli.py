@@ -68,7 +68,7 @@ def cmd_pair_markets(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        markets = _fetch_markets(args)
+        markets = _fetch_markets(args, matches=matches)
     except Exception as exc:
         print(f"Could not fetch markets: {exc}", file=sys.stderr)
         print("Tip: set KALSHI_KEY_ID / KALSHI_PRIVATE_KEY_PATH or use --mock-markets", file=sys.stderr)
@@ -287,15 +287,15 @@ def _make_provider(args: argparse.Namespace):
     return MockProvider()
 
 
-def _fetch_markets(args: argparse.Namespace):
+def _fetch_markets(args: argparse.Namespace, matches=None):
     """
-    Fetch Kalshi markets with ATP/WTA hydration.
+    Fetch Kalshi markets with ATP/WTA hydration via player-based discovery.
 
     Pipeline:
-    1. Search for bundled/meta markets (category="sports")
-    2. Extract embedded ATP/WTA tickers from bundled products
+    1. If matches provided: search Kalshi for each player's name
+    2. Extract embedded ATP/WTA tickers from search results
     3. Hydrate each ATP/WTA ticker via direct get_market() lookup
-    4. Return deduplicated ATP/WTA markets (exclude bundled products)
+    4. Return deduplicated ATP/WTA markets
 
     Uses mock markets when Kalshi env is not configured.
     In live mode, requires KALSHI_KEY_ID and KALSHI_PRIVATE_KEY_PATH.
@@ -312,34 +312,137 @@ def _fetch_markets(args: argparse.Namespace):
 
     from src.live.kalshi_auth import KalshiSigner
     from src.live.kalshi_rest import KalshiRestClient
-    from src.live.market_discovery import search_markets, extract_atp_wta_tickers, _parse_market
+    from src.live.market_discovery import _parse_market
 
     signer = KalshiSigner(env.key_id, env.private_key_path)
     client = KalshiRestClient(env, signer)
     status = getattr(args, "status", "open")
+    verbose = getattr(args, "verbose", False)
 
-    # Step 1: Get bundled/meta markets
-    bundled = search_markets(client, status=status, sport="tennis")
-    print(f"  discovered bundled products: {len(bundled)}", file=sys.stderr)
+    if matches:
+        # Player-based discovery: search by player names from ESPN matches
+        hydrated = _discover_markets_by_players(client, matches, status=status, verbose=verbose)
+    else:
+        # Fallback: bundled product discovery (for non-tennis workflows)
+        from src.live.market_discovery import search_markets, extract_atp_wta_tickers
+        bundled = search_markets(client, status=status, sport="tennis")
+        atp_tickers = extract_atp_wta_tickers(bundled)
+        hydrated = _hydrate_atp_markets(client, atp_tickers, verbose=verbose)
 
-    # Step 2: Extract ATP/WTA tickers from bundled products
-    atp_tickers = extract_atp_wta_tickers(bundled)
-    print(f"  extracted ATP/WTA tickers  : {len(atp_tickers)}", file=sys.stderr)
-
-    # Step 3: Hydrate ATP/WTA markets via direct lookup
-    hydrated = _hydrate_atp_markets(client, atp_tickers)
-    print(f"  hydrated ATP markets       : {len(hydrated)}", file=sys.stderr)
-
+    if verbose:
+        print(f"  final hydrated markets     : {len(hydrated)}", file=sys.stderr)
     return hydrated
 
 
-def _hydrate_atp_markets(client, atp_tickers: list) -> list:
+def _discover_markets_by_players(client, matches, status="open", verbose=False) -> list:
+    """
+    Discover Kalshi markets by searching for each tennis match's player names.
+
+    Args:
+        client: KalshiRestClient instance
+        matches: List of TennisMatchInfo objects
+        status: Kalshi market status filter
+        verbose: If True, log discovery details
+
+    Returns:
+        List of MarketInfo objects, deduplicated by ticker
+    """
+    from src.live.market_discovery import search_markets
+
+    all_search_results = []
+    all_queries = set()
+
+    # For each match, generate search queries using player names
+    for match in matches:
+        queries = [
+            match.player_a,  # Full name
+            match.player_a.split()[-1] if " " in match.player_a else match.player_a,  # Last name
+            match.player_b,  # Full name
+            match.player_b.split()[-1] if " " in match.player_b else match.player_b,  # Last name
+        ]
+        if hasattr(match, 'tournament') and match.tournament:
+            queries.append(match.tournament)
+
+        # Search for each query
+        for q in queries:
+            if not q or q in all_queries:
+                continue
+            all_queries.add(q)
+            try:
+                results = search_markets(client, query=q, status=status)
+                if verbose and results:
+                    print(f"  query '{q}': {len(results)} results", file=sys.stderr)
+                all_search_results.extend(results)
+            except Exception as exc:
+                if verbose:
+                    print(f"  query '{q}' failed: {exc}", file=sys.stderr)
+                continue
+
+    if verbose:
+        print(f"  total raw markets from searches: {len(all_search_results)}", file=sys.stderr)
+
+    # Extract ATP/WTA tickers from all search results
+    atp_tickers = _extract_atp_tickers_recursive(all_search_results, verbose=verbose)
+
+    # Hydrate the extracted tickers
+    hydrated = _hydrate_atp_markets(client, atp_tickers, verbose=verbose)
+    return hydrated
+
+
+def _extract_atp_tickers_recursive(markets, verbose=False) -> list:
+    """
+    Recursively extract ATP/WTA match tickers from market objects and their nested fields.
+
+    Args:
+        markets: List of MarketInfo or raw market dicts
+        verbose: If True, log extraction details
+
+    Returns:
+        Sorted list of unique ATP/WTA tickers (KXATPMATCH-*, KXWTAMATCH-*)
+    """
+    import re
+
+    tickers = set()
+
+    def extract_from_obj(obj, depth=0):
+        """Recursively extract tickers from nested structures."""
+        if depth > 5:  # Prevent infinite recursion
+            return
+
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                # Direct ticker field
+                if k in ("ticker", "market_ticker"):
+                    if isinstance(v, str):
+                        matches = re.findall(r"(KX[A-Z]TPMATCH[^\s,\)]*)", v, re.IGNORECASE)
+                        tickers.update(matches)
+                # Recursively search nested structures
+                extract_from_obj(v, depth + 1)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_from_obj(item, depth + 1)
+        elif isinstance(obj, str):
+            # Search for ATP/WTA patterns in strings
+            matches = re.findall(r"(KX[A-Z]TPMATCH[^\s,\)]*)", obj, re.IGNORECASE)
+            tickers.update(matches)
+
+    for market in markets:
+        extract_from_obj(market)
+
+    result = sorted(list(tickers))
+    if verbose:
+        print(f"  extracted ATP/WTA tickers : {len(result)}", file=sys.stderr)
+    return result
+
+
+def _hydrate_atp_markets(client, atp_tickers: list, verbose=False) -> list:
     """
     Fetch and parse individual ATP/WTA markets by ticker.
 
     Args:
         client: KalshiRestClient instance
         atp_tickers: List of ATP/WTA match tickers (e.g., KXATPMATCH-26MAY25GASMON-GAS)
+        verbose: If True, log hydration details
 
     Returns:
         List of MarketInfo objects, deduplicated by ticker
@@ -347,6 +450,7 @@ def _hydrate_atp_markets(client, atp_tickers: list) -> list:
     from src.live.market_discovery import _parse_market, MarketInfo
 
     hydrated = {}  # ticker -> MarketInfo (for dedup)
+    failed = 0
 
     for ticker in atp_tickers:
         try:
@@ -355,9 +459,13 @@ def _hydrate_atp_markets(client, atp_tickers: list) -> list:
             if ticker not in hydrated:  # Deduplicate by ticker
                 hydrated[ticker] = market
         except Exception as exc:
-            print(f"  warning: could not hydrate {ticker}: {exc}", file=sys.stderr)
+            failed += 1
+            if verbose:
+                print(f"  hydration failed for {ticker}: {exc}", file=sys.stderr)
             continue
 
+    if verbose:
+        print(f"  hydrated ATP markets       : {len(hydrated)} ({failed} failed)", file=sys.stderr)
     return list(hydrated.values())
 
 
@@ -420,6 +528,7 @@ def _build_parser() -> argparse.ArgumentParser:
     pm.add_argument("--threshold", type=float, default=0.55, help="min confidence to accept pair")
     pm.add_argument("--mock-markets", action="store_true", help="use built-in mock markets (no Kalshi auth)")
     pm.add_argument("--provider", default="mock", choices=["mock", "espn"], help="score provider (default: mock)")
+    pm.add_argument("--verbose", action="store_true", help="log discovery details (queries, results, tickers)")
     pm.set_defaults(func=cmd_pair_markets)
 
     # record-paired
