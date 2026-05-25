@@ -20,6 +20,8 @@ htmlcov/
 # Environment / secrets
 .env
 *.env.local
+*.pem
+*.key
 
 # Editors
 .vscode/
@@ -34,6 +36,10 @@ Thumbs.db
 # Data (keep sample files, ignore large dumps)
 data/*.jsonl
 data/*.csv
+
+# Live capture data (never commit real market data)
+data/live/*.jsonl
+data/live/**/*.jsonl
 
 # Generated backtest artifacts (keep the README)
 data/backtests/*
