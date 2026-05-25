@@ -34,10 +34,15 @@ def search_markets(
     ticker: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 100,
+    sport: Optional[str] = None,
+    query: Optional[str] = None,
 ) -> List[MarketInfo]:
     """
     Query the REST API and return a list of MarketInfo objects.
     client must be a KalshiRestClient instance.
+
+    sport:  if "tennis", filter to tennis markets using market_mapping helpers.
+    query:  case-insensitive substring match against title/tickers.
     """
     resp = client.get_markets(
         series_ticker=series_ticker,
@@ -47,7 +52,20 @@ def search_markets(
         limit=limit,
     )
     markets_raw = resp.get("markets", [])
-    return [_parse_market(m) for m in markets_raw]
+    markets = [_parse_market(m) for m in markets_raw]
+
+    if sport is not None and sport.lower() == "tennis":
+        from src.sports.tennis.market_mapping import is_tennis_market
+        markets = [m for m in markets if is_tennis_market(m.title, m.series_ticker)]
+
+    if query is not None:
+        from src.sports.tennis.market_mapping import market_matches_query
+        markets = [
+            m for m in markets
+            if market_matches_query(m.title, m.series_ticker, m.event_ticker, query)
+        ]
+
+    return markets
 
 
 def _parse_market(m: Dict[str, Any]) -> MarketInfo:

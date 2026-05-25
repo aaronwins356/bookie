@@ -1,0 +1,289 @@
+{
+  "_comment": "Sample tennis match data — 9 ticks covering: break point, post-break, tiebreak, match point. Player A = Djokovic, Player B = Alcaraz. Best of 3 on hard court.",
+  "match_id": "ATP-WIM-2026-SF-001",
+  "player_a": "Djokovic",
+  "player_b": "Alcaraz",
+  "tournament": "Wimbledon 2026",
+  "tour": "ATP",
+  "surface": "grass",
+  "best_of": 3,
+  "ticks": [
+    {
+      "tick": 1,
+      "label": "match_start",
+      "description": "Match just started. Even score, A serving.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 1,
+        "sets_a": 0, "sets_b": 0,
+        "games_a": 0, "games_b": 0,
+        "points_a": 0, "points_b": 0,
+        "server": "A",
+        "tiebreak": false,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T14:00:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 48.0, "yes_ask": 52.0,
+        "volume": 250, "open_interest": 120,
+        "mid": 50.0, "spread": 4.0
+      },
+      "expected_regime": "CALM_HOLD_PATTERN"
+    },
+    {
+      "tick": 2,
+      "label": "break_point_0_40",
+      "description": "B has 3 break points at 0-40 vs A's serve. Market panics, drops A to 35.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 1,
+        "sets_a": 0, "sets_b": 0,
+        "games_a": 1, "games_b": 1,
+        "points_a": 0, "points_b": 3,
+        "server": "A",
+        "tiebreak": false,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T14:08:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 33.0, "yes_ask": 37.0,
+        "volume": 380, "open_interest": 190,
+        "mid": 35.0, "spread": 4.0
+      },
+      "expected_regime": "BREAK_POINT_PRESSURE",
+      "strategy_note": "TennisBreakPointOverreaction may fire — server holds ~60% on grass"
+    },
+    {
+      "tick": 3,
+      "label": "a_holds_serve",
+      "description": "A holds serve from 0-40. Market over-corrects upward to 68 (post-hold spike).",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 1,
+        "sets_a": 0, "sets_b": 0,
+        "games_a": 2, "games_b": 1,
+        "points_a": 0, "points_b": 0,
+        "server": "B",
+        "tiebreak": false,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T14:12:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 66.0, "yes_ask": 70.0,
+        "volume": 420, "open_interest": 210,
+        "mid": 68.0, "spread": 4.0
+      },
+      "expected_regime": "POST_BREAK_OVERREACTION",
+      "strategy_note": "TennisPostBreakReversion may fire — overreaction_score high"
+    },
+    {
+      "tick": 4,
+      "label": "a_wins_first_set",
+      "description": "A wins first set 6-3. B starts serving in set 2.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 2,
+        "sets_a": 1, "sets_b": 0,
+        "games_a": 0, "games_b": 0,
+        "points_a": 0, "points_b": 0,
+        "server": "B",
+        "tiebreak": false,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T14:45:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 71.0, "yes_ask": 75.0,
+        "volume": 650, "open_interest": 310,
+        "mid": 73.0, "spread": 4.0
+      },
+      "expected_regime": "CALM_HOLD_PATTERN",
+      "strategy_note": "TennisFavoriteHold may fire — A leads sets, mid below fair"
+    },
+    {
+      "tick": 5,
+      "label": "b_fights_back_2_1",
+      "description": "B wins set 2 6-4. Sets now 1-1. Decider begins.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 3,
+        "sets_a": 1, "sets_b": 1,
+        "games_a": 0, "games_b": 0,
+        "points_a": 0, "points_b": 0,
+        "server": "A",
+        "tiebreak": false,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T15:40:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 49.0, "yes_ask": 53.0,
+        "volume": 900, "open_interest": 450,
+        "mid": 51.0, "spread": 4.0
+      },
+      "expected_regime": "CALM_HOLD_PATTERN"
+    },
+    {
+      "tick": 6,
+      "label": "tiebreak_6_6",
+      "description": "Decider reaches 6-6. Tiebreak begins. All strategies except TiebreakChaosAvoider should hold.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 3,
+        "sets_a": 1, "sets_b": 1,
+        "games_a": 6, "games_b": 6,
+        "points_a": 0, "points_b": 0,
+        "server": "A",
+        "tiebreak": true,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T17:10:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 49.0, "yes_ask": 53.0,
+        "volume": 1400, "open_interest": 700,
+        "mid": 51.0, "spread": 4.0
+      },
+      "expected_regime": "TIEBREAK_CHAOS",
+      "strategy_note": "TennisTiebreakChaosAvoider active. All others hold."
+    },
+    {
+      "tick": 7,
+      "label": "tiebreak_extreme_overreaction",
+      "description": "A leads tiebreak 5-1 but market has only moved to 70. Large edge detected.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 3,
+        "sets_a": 1, "sets_b": 1,
+        "games_a": 6, "games_b": 6,
+        "points_a": 5, "points_b": 1,
+        "server": "A",
+        "tiebreak": true,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T17:18:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 68.0, "yes_ask": 72.0,
+        "volume": 1600, "open_interest": 800,
+        "mid": 70.0, "spread": 4.0
+      },
+      "expected_regime": "TIEBREAK_CHAOS",
+      "strategy_note": "TiebreakChaosAvoider might enter if overreaction_score ≥ 0.20 — confidence capped at 0.45"
+    },
+    {
+      "tick": 8,
+      "label": "match_point",
+      "description": "A leads tiebreak 6-4, match point. All strategies hold.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 3,
+        "sets_a": 1, "sets_b": 1,
+        "games_a": 6, "games_b": 6,
+        "points_a": 6, "points_b": 4,
+        "server": "B",
+        "tiebreak": true,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T17:22:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 88.0, "yes_ask": 92.0,
+        "volume": 1800, "open_interest": 900,
+        "mid": 90.0, "spread": 4.0
+      },
+      "expected_regime": "MATCH_POINT_PRESSURE",
+      "strategy_note": "All strategies hold — match point too late to enter safely"
+    },
+    {
+      "tick": 9,
+      "label": "match_over",
+      "description": "A wins tiebreak 7-4. Match complete.",
+      "state": {
+        "match_id": "ATP-WIM-2026-SF-001",
+        "player_a": "Djokovic",
+        "player_b": "Alcaraz",
+        "tournament": "Wimbledon 2026",
+        "tour": "ATP",
+        "surface": "grass",
+        "best_of": 3,
+        "current_set": 3,
+        "sets_a": 2, "sets_b": 1,
+        "games_a": 7, "games_b": 6,
+        "points_a": 7, "points_b": 4,
+        "server": "B",
+        "tiebreak": false,
+        "retired": false,
+        "suspended": false,
+        "timestamp": "2026-07-04T17:24:00Z"
+      },
+      "market": {
+        "market_id": "KXATP-WIM26-SF001",
+        "yes_bid": 97.0, "yes_ask": 99.0,
+        "volume": 1900, "open_interest": 950,
+        "mid": 98.0, "spread": 2.0
+      },
+      "expected_regime": "CALM_HOLD_PATTERN",
+      "strategy_note": "Match over. sets_a=2 means match_over=True."
+    }
+  ]
+}

@@ -114,6 +114,8 @@ def cmd_list_markets(args: argparse.Namespace) -> int:
             ticker=args.ticker,
             status=args.status,
             limit=args.limit,
+            sport=getattr(args, "sport", None),
+            query=getattr(args, "query", None),
         )
     except Exception as exc:
         print(f"error fetching markets: {exc}", file=sys.stderr)
@@ -271,6 +273,8 @@ def build_parser() -> argparse.ArgumentParser:
     lm.add_argument("--ticker", default=None, help="exact ticker")
     lm.add_argument("--status", default=None, help="market status (e.g. open)")
     lm.add_argument("--limit", type=int, default=100)
+    lm.add_argument("--sport", default=None, help="sport filter (e.g. tennis)")
+    lm.add_argument("--query", default=None, help="substring search across title/tickers")
     lm.set_defaults(func=cmd_list_markets)
 
     # record
