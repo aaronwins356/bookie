@@ -187,21 +187,48 @@ def cmd_search_markets(args: argparse.Namespace) -> int:
     query = args.query
     status = getattr(args, "status", None)
     limit = getattr(args, "limit", 100)
+    verbose = getattr(args, "verbose", False)
 
     try:
         resp = client.search_markets(q=query, status=status, limit=limit)
         markets_raw = resp.get("markets", [])
-        markets = [_parse_market(m) for m in markets_raw]
+        markets_parsed = [_parse_market(m) for m in markets_raw]
     except Exception as exc:
         print(f"error searching markets: {exc}", file=sys.stderr)
         return 1
 
+    # Client-side filtering: search across multiple fields
+    def matches_query(market, q: str) -> bool:
+        """Check if market matches query string."""
+        q_lower = q.lower()
+        search_fields = [
+            market.ticker,
+            market.title,
+            market.series_ticker,
+            market.event_ticker,
+            market.extra.get("subtitle", ""),
+            market.extra.get("category", ""),
+            market.extra.get("sport", ""),
+            market.extra.get("tournament", ""),
+        ]
+        return any(q_lower in str(field).lower() for field in search_fields if field)
+
+    markets = [m for m in markets_parsed if matches_query(m, query)]
+
     print(f"\n{DIVIDER}")
-    print(f"  SEARCH RESULTS for '{query}' ({len(markets)} found)")
+    print(f"  SEARCH RESULTS for '{query}'")
+    if len(markets) < len(markets_parsed):
+        print(f"  ({len(markets)} matched after filtering from {len(markets_parsed)} raw)")
+    else:
+        print(f"  ({len(markets)} found)")
     print(DIVIDER)
 
     if not markets:
-        print("  (no markets found)")
+        print(f"  No markets matched query after client-side filtering.")
+        if verbose and markets_parsed:
+            print(f"  (Showing first 5 of {len(markets_parsed)} raw API results)")
+            for m in markets_parsed[:5]:
+                print(f"    - {m.ticker}: {m.title}")
     else:
         # Print full details for each market
         for m in markets:
@@ -210,7 +237,10 @@ def cmd_search_markets(args: argparse.Namespace) -> int:
             print(f"    Series:       {m.series_ticker}")
             print(f"    Event:        {m.event_ticker}")
             print(f"    Status:       {m.status}")
-            print(f"    Bid/Ask:      {m.yes_bid or '—':.2f} / {m.yes_ask or '—':.2f}")
+            # Safe price formatting
+            bid_str = f"{m.yes_bid:.2f}" if m.yes_bid is not None else "—"
+            ask_str = f"{m.yes_ask:.2f}" if m.yes_ask is not None else "—"
+            print(f"    Bid/Ask:      {bid_str} / {ask_str}")
             print(f"    Volume:       {m.volume}")
             print(f"    Open Int:     {m.open_interest}")
             if m.extra:
@@ -374,7 +404,8 @@ def build_parser() -> argparse.ArgumentParser:
     sm = sub.add_parser("search-markets", help="search markets by query (e.g., 'Gaston', 'French Open')")
     sm.add_argument("--query", required=True, help="search query string")
     sm.add_argument("--status", default=None, help="filter by status (e.g. open)")
-    sm.add_argument("--limit", type=int, default=100, help="max results")
+    sm.add_argument("--limit", type=int, default=100, help="max raw results to fetch before filtering")
+    sm.add_argument("--verbose", action="store_true", help="show raw API results when no matches found")
     sm.set_defaults(func=cmd_search_markets)
 
     # record

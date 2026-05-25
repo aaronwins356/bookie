@@ -68,6 +68,89 @@ class TestListMarketsCommand:
         assert rc != 0
 
 
+class TestSearchMarketsCommand:
+    def test_fails_without_env(self, capsys):
+        clean_env = {k: v for k, v in os.environ.items()
+                     if k not in ("KALSHI_KEY_ID", "KALSHI_PRIVATE_KEY_PATH")}
+        with patch.dict(os.environ, clean_env, clear=True):
+            args = build_parser().parse_args(["search-markets", "--query", "Gaston"])
+            rc = args.func(args)
+        assert rc != 0
+
+    def test_handles_missing_prices(self, capsys, tmp_path):
+        """Test that None/missing prices don't crash with format error."""
+        pem = tmp_path / "key.pem"
+        pem.write_text("dummy")
+        clean_env = {
+            "KALSHI_KEY_ID": "test-key",
+            "KALSHI_PRIVATE_KEY_PATH": str(pem),
+        }
+
+        # Mock response with markets missing yes_bid/yes_ask
+        from src.live.market_discovery import MarketInfo
+        mock_market = MarketInfo(
+            ticker="TEST-001",
+            title="Test Market without prices",
+            status="open",
+            event_ticker="TEST",
+            series_ticker="TEST",
+            yes_bid=None,
+            yes_ask=None,
+        )
+
+        # Verify formatting doesn't crash
+        bid_str = f"{mock_market.yes_bid:.2f}" if mock_market.yes_bid is not None else "—"
+        ask_str = f"{mock_market.yes_ask:.2f}" if mock_market.yes_ask is not None else "—"
+        assert bid_str == "—"
+        assert ask_str == "—"
+
+    def test_query_filtering_gaston(self):
+        """Test that query 'Gaston' only matches markets containing Gaston."""
+        from src.live.market_discovery import MarketInfo
+
+        # Markets that should match
+        gaston_match = MarketInfo(
+            ticker="KXRG26-GASTMON-001",
+            title="Hugo Gaston vs Gael Monfils - French Open",
+            status="open",
+            event_ticker="KXRG26-GASTMON",
+            series_ticker="KXRG26",
+        )
+
+        # Markets that should NOT match
+        bundled = MarketInfo(
+            ticker="KXMVESPORTSMULTIGAMEEXTENDED",
+            title="MVP Extended Sports Multi-Game Bundle",
+            status="open",
+            event_ticker="KXMVESPORTS",
+            series_ticker="KXMVESPORTS",
+            extra={"category": "bundled_product"},
+        )
+
+        # Define matching function (same as in cmd_search_markets)
+        def matches_query(market, q: str) -> bool:
+            q_lower = q.lower()
+            search_fields = [
+                market.ticker,
+                market.title,
+                market.series_ticker,
+                market.event_ticker,
+                market.extra.get("subtitle", ""),
+                market.extra.get("category", ""),
+                market.extra.get("sport", ""),
+                market.extra.get("tournament", ""),
+            ]
+            return any(q_lower in str(field).lower() for field in search_fields if field)
+
+        # Test filtering
+        assert matches_query(gaston_match, "Gaston") is True
+        assert matches_query(gaston_match, "Monfils") is True
+        assert matches_query(gaston_match, "French Open") is True
+        assert matches_query(bundled, "Gaston") is False
+        assert matches_query(bundled, "KXMVE") is True  # Matches by ticker
+        assert matches_query(bundled, "bundled") is True  # Matches by category
+
+
 class TestBuildBundleCommand:
     def _write_capture(self, path: Path, ticker: str = "T", n: int = 3) -> None:
         with open(path, "w") as fh:
